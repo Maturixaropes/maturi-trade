@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Maturí Trade">
+<link rel="manifest" href="#" id="manifest-placeholder">
+<title>Maturí Trade — Degustação</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --gold-dark: #9A7A30;
+    --dark: #0F0F1A;
+    --dark-2: #1A1A2E;
+    --dark-3: #252540;
+    --dark-4: #32324F;
+    --text: #F0EDE6;
+    --text-muted: #9896B0;
+    --success: #4CAF7C;
+    --danger: #E25757;
+    --border: rgba(201,168,76,0.2);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    overflow: hidden;
+  }
+
+  #app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--dark);
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen.active { display: flex; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--dark);
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.5px;
+    color: var(--gold);
+  }
+  .topbar-logo span { color: var(--text); }
+  .topbar-user {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── SCROLLABLE CONTENT ── */
+  .content {
+    flex: 1;
+    padding: 24px 20px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ── HERO ── */
+  .hero { text-align: center; padding: 12px 0 8px; }
+  .hero-icon {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 32px;
+  }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .hero h1 em { color: var(--gold); font-style: normal; }
+  .hero p { color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--dark-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+
+  /* ── INPUTS ── */
+  .input-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .input-wrap label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  input[type="text"], input[type="number"], textarea {
+    background: var(--dark-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    padding: 14px 16px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+    border-color: var(--gold);
+  }
+  input[type="text"]::placeholder, input[type="number"]::placeholder,
+  textarea::placeholder { color: var(--text-muted); }
+  textarea { resize: none; min-height: 80px; line-height: 1.5; }
+
+  /* ── PHOTO SLOT ── */
+  .photo-slot {
+    position: relative;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    background: var(--dark-4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .photo-slot:hover { border-color: var(--gold); }
+  .photo-slot.has-photo { border-style: solid; border-color: var(--gold); }
+  .photo-slot img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .photo-slot-icon { font-size: 28px; z-index: 1; }
+  .photo-slot-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    z-index: 1;
+    padding: 0 12px;
+  }
+  .photo-slot input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; z-index: 2;
+    width: 100%; height: 100%; padding: 0;
+    border: none; background: none;
+  }
+  .photo-overlay {
+    position: absolute; inset: 0;
+    background: rgba(15,15,26,0.55);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 3;
+  }
+  .photo-overlay-text {
+    background: var(--gold);
+    color: var(--dark);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+
+  /* ── BUTTON ── */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 50px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px 24px;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--gold); color: var(--dark); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--gold);
+    border: 1.5px solid var(--gold);
+  }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-ghost { background: var(--dark-3); color: var(--text); border: 1px solid var(--border); }
+  .btn-sm { padding: 10px 18px; font-size: 14px; }
+
+  /* ── STEP INDICATOR ── */
+  .steps {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 4px 0 2px;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dark-4);
+    transition: all 0.3s;
+  }
+  .step-dot.active {
+    width: 24px; height: 8px;
+    border-radius: 4px;
+    background: var(--gold);
+  }
+  .step-dot.done { background: var(--gold-dark); }
+
+  /* ── PHOTO GRID (durante) ── */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .photo-thumb {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--dark-4);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-thumb-add {
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 24px; color: var(--gold);
+    transition: background 0.2s;
+  }
+  .photo-thumb-add:hover { background: var(--dark-3); }
+  .photo-thumb-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo-thumb .remove-btn {
+    position: absolute; top: 4px; right: 4px; z-index: 2;
+    background: rgba(15,15,26,0.8);
+    border: none; color: var(--danger);
+    border-radius: 50%; width: 22px; height: 22px;
+    font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── INFO ROW ── */
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row-label { font-size: 13px; color: var(--text-muted); }
+  .info-row-value { font-size: 14px; font-weight: 600; color: var(--text); text-align: right; }
+
+  /* ── SUCCESS ── */
+  .success-icon {
+    width: 80px; height: 80px;
+    background: rgba(76,175,124,0.15);
+    border: 2px solid var(--success);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin: 0 auto 20px;
+  }
+
+  /* ── PROGRESS BAR ── */
+  .upload-progress {
+    background: var(--dark-4);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+    display: none;
+  }
+  .upload-progress.active { display: block; }
+  .upload-progress-bar {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 4px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--dark-3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    z-index: 9999;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--success); }
+  #toast.error { border-color: var(--danger); }
+
+  /* ── LOADING ── */
+  #loading-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,15,26,0.85);
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #loading-overlay.active { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p { color: var(--text-muted); font-size: 14px; }
+
+  /* ── SCROLLBAR ── */
+  .screen::-webkit-scrollbar { width: 3px; }
+  .screen::-webkit-scrollbar-track { background: transparent; }
+  .screen::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── DASHBOARD SCREEN ── */
+  .dash-header {
+    background: var(--dark-2);
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10; flex-shrink: 0;
+  }
+  .dash-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight: 800;
+    color: var(--gold);
+  }
+  .dash-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .stat-card {
+    background: var(--dark-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 700;
+    color: var(--gold);
+  }
+  .stat-card .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .session-card {
+    background: var(--dark-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .session-card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 600;
+  }
+  .session-card-time { font-size: 12px; color: var(--text-muted); }
+  .session-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-active { background: rgba(76,175,124,0.15); color: var(--success); }
+  .badge-done { background: rgba(201,168,76,0.15); color: var(--gold); }
+  .dash-photos {
+    display: flex; gap: 6px; overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .dash-photos img {
+    width: 56px; height: 56px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+
+  /* ── LIGHTBOX ── */
+  #lightbox {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.9); z-index: 9997;
+    align-items: center; justify-content: center;
+  }
+  #lightbox.active { display: flex; }
+  #lightbox img { max-width: 94vw; max-height: 90vh; border-radius: 12px; }
+  #lightbox-close {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.1); border: none; color: white;
+    border-radius: 50%; width: 36px; height: 36px; font-size: 18px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── FIREBASE CONFIG MODAL ── */
+  #config-modal {
+    position: fixed; inset: 0; z-index: 10000;
+    background: var(--dark);
+    display: flex; flex-direction: column;
+    padding: 24px 20px;
+    overflow-y: auto;
+    gap: 20px;
+  }
+  #config-modal h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 800;
+    color: var(--gold);
+  }
+  #config-modal p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  #config-modal .config-field { display: flex; flex-direction: column; gap: 6px; }
+  #config-modal .config-field label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .config-note {
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .config-note strong { color: var(--gold); }
+
+  /* ── NUMERO GRANDE ── */
+  .big-num-wrap {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .big-num-btn {
+    width: 44px; height: 44px;
+    background: var(--dark-4);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--gold);
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .big-num-btn:active { background: var(--dark-3); }
+  .big-num-display {
+    flex: 1; text-align: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 36px; font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ── MERCADO FIELD ── */
+  .market-tag {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .market-tag button {
+    background: var(--dark-4);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .market-tag button.selected {
+    background: rgba(201,168,76,0.15);
+    border-color: var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --dark: #F5F3EE;
+      --dark-2: #ECEAE3;
+      --dark-3: #E4E1D8;
+      --dark-4: #D8D4CA;
+      --text: #1A1A2E;
+      --text-muted: #6B6880;
+      --border: rgba(154,122,48,0.25);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Aguarde...</p>
+</div>
+
+<div id="lightbox">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div id="toast"></div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- ── SCREEN: LOGIN ── -->
+  <div id="screen-login" class="screen">
+    <div class="content" style="justify-content: center; min-height: 100vh; padding-top: 60px;">
+      <div class="hero">
+        <div class="hero-icon">🍷</div>
+        <h1>Olá,<br><em>Degustadora!</em></h1>
+        <p>Registre sua ação de degustação<br>Maturí de forma rápida e simples.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Seu nome</div>
+        <div class="input-wrap">
+          <input type="text" id="login-name" placeholder="Digite seu nome completo" autocomplete="name" autocapitalize="words">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Mercado</div>
+        <div class="input-wrap">
+          <input type="text" id="login-market" placeholder="Nome do supermercado" autocapitalize="words">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Cidade</div>
+        <div class="input-wrap">
+          <input type="text" id="login-city" placeholder="Cidade" autocapitalize="words">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="doLogin()">Iniciar minha ação →</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: INÍCIO DA AÇÃO ── -->
+  <div id="screen-start" class="screen">
+    <div class="topbar">
+      <div class="topbar-logo">Maturí<span> Trade</span></div>
+      <div class="topbar-user" id="topbar-name-start">—</div>
+    </div>
+    <div class="steps" style="padding: 12px 20px 0;">
+      <div class="step-dot active" id="dot-0"></div>
+      <div class="step-dot" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+    </div>
+    <div class="content">
+      <div>
+        <div class="card-label" style="margin-bottom:4px">ETAPA 1 DE 3</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;line-height:1.2">Início da Degustação</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:6px">Registre as fotos e a quantidade de copos</p>
+      </div>
+
+      <!-- Foto: degustadora + carrinho -->
+      <div class="card">
+        <div class="card-label">📸 Foto — Você + Carrinho</div>
+        <div class="photo-slot" id="slot-selfie">
+          <div class="photo-slot-icon">🤳</div>
+          <div class="photo-slot-text">Tire uma foto ao lado do carrinho de degustação</div>
+          <input type="file" accept="image/*" capture="user" onchange="handlePhoto(this,'selfie')">
+        </div>
+      </div>
+
+      <!-- Foto: área de venda antes -->
+      <div class="card">
+        <div class="card-label">📸 Área de Venda — Antes</div>
+        <div class="photo-slot" id="slot-before">
+          <div class="photo-slot-icon">🏪</div>
+          <div class="photo-slot-text">Foto da área de venda antes da degustação</div>
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,'before')">
+        </div>
+      </div>
+
+      <!-- Copos iniciais -->
+      <div class="card">
+        <div class="card-label">🥤 Copos para Degustação</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Quantos copos você está levando?</p>
+        <div class="big-num-wrap">
+          <button class="big-num-btn" onclick="changeNum('cups-start',-5)">−</button>
+          <div class="big-num-display" id="cups-start-display">100</div>
+          <button class="big-num-btn" onclick="changeNum('cups-start',5)">+</button>
+        </div>
+        <input type="hidden" id="cups-start-val" value="100">
+        <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px">Toque −/+ para ajustar de 5 em 5</p>
+      </div>
+
+      <div id="upload-progress-start" class="upload-progress">
+        <div class="upload-progress-bar" id="upload-bar-start"></div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-start-next" onclick="submitStart()">Próximo →</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: DURANTE A AÇÃO ── -->
+  <div id="screen-during" class="screen">
+    <div class="topbar">
+      <div class="topbar-logo">Maturí<span> Trade</span></div>
+      <div class="topbar-user" id="topbar-name-during">—</div>
+    </div>
+    <div class="steps" style="padding: 12px 20px 0;">
+      <div class="step-dot done" id="dot2-0"></div>
+      <div class="step-dot active" id="dot2-1"></div>
+      <div class="step-dot" id="dot2-2"></div>
+    </div>
+    <div class="content">
+      <div>
+        <div class="card-label" style="margin-bottom:4px">ETAPA 2 DE 3</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;line-height:1.2">Degustação em Andamento</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:6px">Adicione fotos do momento conforme quiser</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label" style="margin-bottom:12px">📸 Fotos da ação</div>
+        <div class="photo-grid" id="during-grid">
+          <div class="photo-thumb photo-thumb-add" onclick="triggerDuringUpload()">
+            <span style="font-size:28px;color:var(--gold)">+</span>
+            <input type="file" accept="image/*" capture="environment" id="during-input" multiple onchange="handleDuringPhotos(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;background:none;">
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;text-align:center">Toque no + para adicionar fotos</p>
+      </div>
+
+      <div class="card" style="background: rgba(76,175,124,0.06); border-color: rgba(76,175,124,0.3);">
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.5">🕐 Quando terminar a degustação, clique no botão abaixo para registrar os resultados finais.</p>
+      </div>
+
+      <button class="btn btn-danger" onclick="goToEnd()" style="margin-top:4px">✅ Terminei minha degustação</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: ENCERRAMENTO ── -->
+  <div id="screen-end" class="screen">
+    <div class="topbar">
+      <div class="topbar-logo">Maturí<span> Trade</span></div>
+      <div class="topbar-user" id="topbar-name-end">—</div>
+    </div>
+    <div class="steps" style="padding: 12px 20px 0;">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+    </div>
+    <div class="content">
+      <div>
+        <div class="card-label" style="margin-bottom:4px">ETAPA 3 DE 3</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;line-height:1.2">Encerrar Degustação</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:6px">Registre os resultados da ação</p>
+      </div>
+
+      <!-- Foto: área de venda depois -->
+      <div class="card">
+        <div class="card-label">📸 Área de Venda — Depois</div>
+        <div class="photo-slot" id="slot-after">
+          <div class="photo-slot-icon">🏪</div>
+          <div class="photo-slot-text">Foto da área de venda após a degustação</div>
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(this,'after')">
+        </div>
+      </div>
+
+      <!-- Copos restantes -->
+      <div class="card">
+        <div class="card-label">🥤 Copos Restantes</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Quantos copos sobraram?</p>
+        <div class="big-num-wrap">
+          <button class="big-num-btn" onclick="changeNum('cups-end',-5)">−</button>
+          <div class="big-num-display" id="cups-end-display">0</div>
+          <button class="big-num-btn" onclick="changeNum('cups-end',5)">+</button>
+        </div>
+        <input type="hidden" id="cups-end-val" value="0">
+      </div>
+
+      <!-- Garrafas vendidas -->
+      <div class="card">
+        <div class="card-label">🍷 Garrafas Vendidas</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Estimativa de garrafas vendidas durante a ação</p>
+        <div class="big-num-wrap">
+          <button class="big-num-btn" onclick="changeNum('bottles',-1)">−</button>
+          <div class="big-num-display" id="bottles-display">0</div>
+          <button class="big-num-btn" onclick="changeNum('bottles',1)">+</button>
+        </div>
+        <input type="hidden" id="bottles-val" value="0">
+      </div>
+
+      <!-- Observações -->
+      <div class="card">
+        <div class="card-label">💬 Observações (opcional)</div>
+        <textarea id="end-notes" placeholder="Alguma observação sobre a ação? Feedbacks de clientes, ocorrências..."></textarea>
+      </div>
+
+      <div id="upload-progress-end" class="upload-progress">
+        <div class="upload-progress-bar" id="upload-bar-end"></div>
+      </div>
+
+      <button class="btn btn-success" id="btn-finish" onclick="submitEnd()">Enviar e Finalizar ✓</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: OBRIGADA ── -->
+  <div id="screen-done" class="screen">
+    <div class="content" style="justify-content:center;min-height:100vh;text-align:center">
+      <div>
+        <div class="success-icon">✅</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--success)">Ação Finalizada!</h2>
+        <p style="color:var(--text-muted);font-size:14px;margin-top:10px;line-height:1.6">Obrigada pela dedicação! Os dados foram<br>enviados para a equipe Maturí.</p>
+      </div>
+
+      <div class="card" id="summary-card">
+        <div class="card-label">Resumo da ação</div>
+        <div id="summary-content"></div>
+      </div>
+
+      <button class="btn btn-ghost" onclick="restart()">Iniciar nova ação</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: DASHBOARD ── -->
+  <div id="screen-dashboard" class="screen">
+    <div class="dash-header">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h2>Dashboard</h2>
+          <p>Visão geral das ações</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="width:auto;padding:8px 14px" onclick="loadDashboard()">↻ Atualizar</button>
+      </div>
+      <div id="dash-filter" style="margin-top:12px;display:flex;gap:8px;overflow-x:auto;padding-bottom:4px">
+        <button class="btn btn-ghost btn-sm" style="width:auto;white-space:nowrap;padding:6px 14px;border-color:var(--gold);color:var(--gold)" onclick="filterDash('all')">Todas</button>
+        <button class="btn btn-ghost btn-sm" style="width:auto;white-space:nowrap;padding:6px 14px" id="filter-active" onclick="filterDash('active')">Em andamento</button>
+        <button class="btn btn-ghost btn-sm" style="width:auto;white-space:nowrap;padding:6px 14px" id="filter-done" onclick="filterDash('done')">Finalizadas</button>
+      </div>
+    </div>
+    <div class="content" id="dash-content">
+      <div class="stat-grid" id="dash-stats">
+        <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total de ações</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-bottles">—</div><div class="stat-label">Garrafas vendidas</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-cups-used">—</div><div class="stat-label">Copos utilizados</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-active">—</div><div class="stat-label">Em andamento</div></div>
+      </div>
+      <div id="dash-list" style="display:flex;flex-direction:column;gap:12px">
+        <p style="color:var(--text-muted);text-align:center;font-size:14px">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- DASHBOARD TOGGLE -->
+<div id="dash-toggle" style="position:fixed;bottom:20px;right:20px;z-index:500;display:none">
+  <button class="btn btn-primary btn-sm" style="width:auto;padding:10px 18px;border-radius:30px;box-shadow:0 4px 16px rgba(201,168,76,0.3)" onclick="toggleDash()">📊</button>
+</div>
+
+<script>
+// ──────────────────────────────
+//  STATE
+// ──────────────────────────────
+let db = null, demoMode = false;
+let sessionId = null;
+let state = {
+  name: '', market: '', city: '',
+  cupsStart: 100, cupsEnd: 0, bottles: 0,
+  notes: '',
+  photos: { selfie: null, before: null, after: null, during: [] }
+};
+let dashFilter = 'all';
+let allSessions = [];
+let isDashOpen = false;
+
+// ──────────────────────────────
+//  FIREBASE CONFIG
+// ──────────────────────────────
+function saveConfig() {
+  const cfg = {
+    apiKey: document.getElementById('cfg-apiKey').value.trim(),
+    authDomain: document.getElementById('cfg-authDomain').value.trim(),
+    projectId: document.getElementById('cfg-projectId').value.trim(),
+    storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+    appId: document.getElementById('cfg-appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.projectId) { showToast('Preencha pelo menos API Key e Project ID', 'error'); return; }
+  localStorage.setItem('maturi_firebase_cfg', JSON.stringify(cfg));
+  initFirebase(cfg);
+}
+
+function useDemo() {
+  demoMode = true;
+  document.getElementById('config-modal').style.display = 'none';
+  showToast('Modo demonstração: dados não serão salvos na nuvem');
+  showScreen('login');
+  document.getElementById('dash-toggle').style.display = 'block';
+}
+
+function initFirebase(cfg) {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.firestore();
+    document.getElementById('config-modal').style.display = 'none';
+    showToast('Firebase conectado! ✓', 'success');
+    showScreen('login');
+    document.getElementById('dash-toggle').style.display = 'block';
+  } catch(e) {
+    console.error(e);
+    showToast('Erro ao conectar. Verifique as credenciais.', 'error');
+  }
+}
+
+// ──────────────────────────────
+//  SCREENS
+// ──────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-'+name);
+  if (el) { el.classList.add('active'); el.scrollTop = 0; }
+}
+
+// ──────────────────────────────
+//  LOGIN
+// ──────────────────────────────
+function doLogin() {
+  const name = document.getElementById('login-name').value.trim();
+  const market = document.getElementById('login-market').value.trim();
+  const city = document.getElementById('login-city').value.trim();
+  if (!name) { showToast('Digite seu nome completo', 'error'); return; }
+  if (!market) { showToast('Informe o mercado', 'error'); return; }
+  state.name = name; state.market = market; state.city = city;
+  sessionId = 'sess_' + Date.now();
+  document.getElementById('topbar-name-start').textContent = name.split(' ')[0];
+  document.getElementById('topbar-name-during').textContent = name.split(' ')[0];
+  document.getElementById('topbar-name-end').textContent = name.split(' ')[0];
+  showScreen('start');
+}
+
+// ──────────────────────────────
+//  PHOTO HANDLING
+// ──────────────────────────────
+function handlePhoto(input, slot) {
+  const file = input.files[0];
+  if (!file) return;
+  state.photos[slot] = file;
+  const slotEl = document.getElementById('slot-' + slot);
+  const reader = new FileReader();
+  reader.onload = e => {
+    slotEl.classList.add('has-photo');
+    const existing = slotEl.querySelector('img');
+    if (existing) existing.remove();
+    const overlay = slotEl.querySelector('.photo-overlay');
+    if (overlay) overlay.remove();
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    slotEl.insertBefore(img, slotEl.firstChild);
+    const ov = document.createElement('div');
+    ov.className = 'photo-overlay';
+    ov.innerHTML = '<span class="photo-overlay-text">Foto salva ✓</span>';
+    slotEl.appendChild(ov);
+  };
+  reader.readAsDataURL(file);
+}
+
+function triggerDuringUpload() {
+  document.getElementById('during-input').click();
+}
+
+function handleDuringPhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    state.photos.during.push(file);
+    const reader = new FileReader();
+    reader.onload = e => addDuringThumb(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function addDuringThumb(src) {
+  const grid = document.getElementById('during-grid');
+  const addBtn = grid.querySelector('.photo-thumb-add');
+  const thumb = document.createElement('div');
+  thumb.className = 'photo-thumb';
+  const idx = state.photos.during.length - 1;
+  thumb.innerHTML = `<img src="${src}" alt="Foto ${idx+1}">
+    <button class="remove-btn" onclick="removeDuringPhoto(${idx},this.closest('.photo-thumb'))">✕</button>`;
+  grid.insertBefore(thumb, addBtn);
+  showToast('Foto adicionada ✓', 'success');
+}
+
+function removeDuringPhoto(idx, el) {
+  state.photos.during.splice(idx, 1);
+  el.remove();
+}
+
+// ──────────────────────────────
+//  NUMBER CONTROLS
+// ──────────────────────────────
+function changeNum(key, delta) {
+  const valEl = document.getElementById(key + '-val');
+  const dispEl = document.getElementById(key + '-display');
+  let val = parseInt(valEl.value) + delta;
+  if (val < 0) val = 0;
+  if (key === 'cups-start') state.cupsStart = val;
+  if (key === 'cups-end') state.cupsEnd = val;
+  if (key === 'bottles') state.bottles = val;
+  valEl.value = val;
+  dispEl.textContent = val;
+}
+
+// ──────────────────────────────
+//  SUBMIT START
+// ──────────────────────────────
+async function submitStart() {
+  if (!state.photos.selfie) { showToast('Adicione sua foto ao lado do carrinho', 'error'); return; }
+  if (!state.photos.before) { showToast('Adicione a foto da área de venda', 'error'); return; }
+
+  const btn = document.getElementById('btn-start-next');
+  btn.disabled = true;
+
+  if (demoMode) {
+    showScreen('during');
+    btn.disabled = false;
+    return;
+  }
+
+  showLoading('Salvando início da ação...');
+  try {
+    const data = {
+      name: state.name, market: state.market, city: state.city,
+      cupsStart: state.cupsStart,
+      startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'active',
+      photos: {}
+    };
+    // Upload selfie
+    setBar('start', 20);
+    data.photos.selfie = await uploadFile(state.photos.selfie, `sessions/${sessionId}/selfie.jpg`);
+    setBar('start', 60);
+    data.photos.before = await uploadFile(state.photos.before, `sessions/${sessionId}/before.jpg`);
+    setBar('start', 90);
+    await db.collection('sessions').doc(sessionId).set(data);
+    setBar('start', 100);
+    hideLoading();
+    showScreen('during');
+  } catch(e) {
+    console.error(e);
+    hideLoading();
+    showToast('Erro ao salvar. Tente novamente.', 'error');
+  }
+  btn.disabled = false;
+}
+
+// ──────────────────────────────
+//  GO TO END
+// ──────────────────────────────
+async function goToEnd() {
+  if (!demoMode && state.photos.during.length > 0) {
+    showLoading('Salvando fotos...');
+    try {
+      const urls = [];
+      for (let i = 0; i < state.photos.during.length; i++) {
+        const url = await uploadFile(state.photos.during[i], `sessions/${sessionId}/during_${i}.jpg`);
+        urls.push(url);
+        setBar('start', Math.round((i+1)/state.photos.during.length*100));
+      }
+      await db.collection('sessions').doc(sessionId).update({ 'photos.during': urls });
+      hideLoading();
+    } catch(e) {
+      console.error(e);
+      hideLoading();
+      showToast('Erro ao salvar fotos. Continuando...', 'error');
+    }
+  }
+  showScreen('end');
+}
+
+// ──────────────────────────────
+//  SUBMIT END
+// ──────────────────────────────
+async function submitEnd() {
+  if (!state.photos.after) { showToast('Adicione a foto da área de venda após a ação', 'error'); return; }
+
+  const btn = document.getElementById('btn-finish');
+  btn.disabled = true;
+
+  if (demoMode) {
+    showSummary();
+    showScreen('done');
+    btn.disabled = false;
+    return;
+  }
+
+  showLoading('Finalizando e enviando...');
+  const progressEl = document.getElementById('upload-progress-end');
+  progressEl.classList.add('active');
+
+  try {
+    setBar('end', 30);
+    const afterUrl = await uploadFile(state.photos.after, `sessions/${sessionId}/after.jpg`);
+    setBar('end', 70);
+    state.notes = document.getElementById('end-notes').value.trim();
+
+    await db.collection('sessions').doc(sessionId).update({
+      cupsEnd: state.cupsEnd,
+      bottles: state.bottles,
+      notes: state.notes,
+      'photos.after': afterUrl,
+      finishedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'done',
+      cupsUsed: state.cupsStart - state.cupsEnd
+    });
+    setBar('end', 100);
+    hideLoading();
+    showSummary();
+    showScreen('done');
+  } catch(e) {
+    console.error(e);
+    hideLoading();
+    showToast('Erro ao enviar. Tente novamente.', 'error');
+  }
+  btn.disabled = false;
+}
+
+function showSummary() {
+  const used = state.cupsStart - state.cupsEnd;
+  document.getElementById('summary-content').innerHTML = `
+    <div class="info-row"><span class="info-row-label">Degustadora</span><span class="info-row-value">${state.name}</span></div>
+    <div class="info-row"><span class="info-row-label">Mercado</span><span class="info-row-value">${state.market}</span></div>
+    <div class="info-row"><span class="info-row-label">Cidade</span><span class="info-row-value">${state.city||'—'}</span></div>
+    <div class="info-row"><span class="info-row-label">Copos utilizados</span><span class="info-row-value" style="color:var(--gold)">${used < 0 ? 0 : used}</span></div>
+    <div class="info-row"><span class="info-row-label">Garrafas vendidas</span><span class="info-row-value" style="color:var(--success)">${state.bottles}</span></div>
+    ${state.notes ? `<div class="info-row"><span class="info-row-label">Obs.</span><span class="info-row-value" style="max-width:60%;font-size:13px">${state.notes}</span></div>` : ''}
+  `;
+}
+
+function restart() {
+  state = { name:'',market:'',city:'',cupsStart:100,cupsEnd:0,bottles:0,notes:'',photos:{selfie:null,before:null,after:null,during:[]} };
+  sessionId = null;
+  document.getElementById('login-name').value = '';
+  document.getElementById('login-market').value = '';
+  document.getElementById('login-city').value = '';
+  document.getElementById('cups-start-val').value = 100;
+  document.getElementById('cups-start-display').textContent = 100;
+  document.getElementById('cups-end-val').value = 0;
+  document.getElementById('cups-end-display').textContent = 0;
+  document.getElementById('bottles-val').value = 0;
+  document.getElementById('bottles-display').textContent = 0;
+  document.getElementById('end-notes').value = '';
+  ['slot-selfie','slot-before','slot-after'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('has-photo');
+    el.querySelectorAll('img,.photo-overlay').forEach(e=>e.remove());
+  });
+  document.getElementById('during-grid').innerHTML = `
+    <div class="photo-thumb photo-thumb-add" onclick="triggerDuringUpload()">
+      <span style="font-size:28px;color:var(--gold)">+</span>
+      <input type="file" accept="image/*" capture="environment" id="during-input" multiple onchange="handleDuringPhotos(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;background:none;">
+    </div>`;
+  showScreen('login');
+}
+
+// ──────────────────────────────
+//  DASHBOARD
+// ──────────────────────────────
+function toggleDash() {
+  if (!isDashOpen) {
+    isDashOpen = true;
+    loadDashboard();
+    showScreen('dashboard');
+  } else {
+    isDashOpen = false;
+    showScreen('login');
+  }
+}
+
+async function loadDashboard() {
+  if (demoMode) {
+    renderDashDemo(); return;
+  }
+  if (!db) return;
+  try {
+    const snap = await db.collection('sessions').orderBy('startedAt','desc').limit(100).get();
+    allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderDash(allSessions);
+  } catch(e) {
+    console.error(e);
+    showToast('Erro ao carregar dashboard','error');
+  }
+}
+
+function filterDash(f) {
+  dashFilter = f;
+  const btns = document.querySelectorAll('#dash-filter button');
+  btns.forEach(b => { b.style.borderColor = ''; b.style.color = ''; });
+  const activeBtn = document.querySelector(`#dash-filter button:nth-child(${f==='all'?1:f==='active'?2:3})`);
+  if (activeBtn) { activeBtn.style.borderColor = 'var(--gold)'; activeBtn.style.color = 'var(--gold)'; }
+  const filtered = f === 'all' ? allSessions : allSessions.filter(s => s.status === f);
+  renderDashList(filtered);
+}
+
+function renderDash(sessions) {
+  const total = sessions.length;
+  const active = sessions.filter(s => s.status === 'active').length;
+  const bottles = sessions.reduce((a,s) => a + (s.bottles||0), 0);
+  const cupsUsed = sessions.reduce((a,s) => a + (s.cupsUsed||0), 0);
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-bottles').textContent = bottles;
+  document.getElementById('stat-cups-used').textContent = cupsUsed;
+  document.getElementById('stat-active').textContent = active;
+  renderDashList(sessions);
+}
+
+function renderDashList(sessions) {
+  const el = document.getElementById('dash-list');
+  if (!sessions.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);text-align:center;font-size:14px">Nenhuma ação encontrada</p>';
+    return;
+  }
+  el.innerHTML = sessions.map(s => {
+    const ts = s.startedAt ? new Date(s.startedAt.seconds*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const badge = s.status === 'active'
+      ? '<span class="session-badge badge-active">● Em andamento</span>'
+      : '<span class="session-badge badge-done">✓ Finalizada</span>';
+    const during = (s.photos?.during || []).slice(0,5);
+    const photoHtml = during.length ? `<div class="dash-photos">${during.map(url=>`<img src="${url}" onclick="openLightbox('${url}')">`).join('')}</div>` : '';
+    const beforeUrl = s.photos?.before || '';
+    const afterUrl = s.photos?.after || '';
+    const selfieUrl = s.photos?.selfie || '';
+    const mainPhotos = [selfieUrl,beforeUrl,afterUrl].filter(Boolean);
+    const mainPhotoHtml = mainPhotos.length ? `<div class="dash-photos">${mainPhotos.map(url=>`<img src="${url}" onclick="openLightbox('${url}')">`).join('')}</div>` : '';
+    return `
+    <div class="session-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div>
+          <div class="session-card-name">${s.name||'—'}</div>
+          <div class="session-card-time">${s.market||''} ${s.city?'· '+s.city:''}</div>
+          <div class="session-card-time" style="margin-top:2px">${ts}</div>
+        </div>
+        ${badge}
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--text-muted)">🥤 <strong style="color:var(--text)">${s.cupsStart||0}</strong> copos</span>
+        ${s.status==='done'?`<span style="font-size:13px;color:var(--text-muted)">🍷 <strong style="color:var(--success)">${s.bottles||0}</strong> garrafas</span>`:''}
+        ${s.cupsUsed?`<span style="font-size:13px;color:var(--text-muted)">📊 <strong style="color:var(--gold)">${s.cupsUsed}</strong> usados</span>`:''}
+      </div>
+      ${mainPhotoHtml}
+      ${photoHtml}
+      ${s.notes?`<p style="font-size:12px;color:var(--text-muted);line-height:1.4;border-top:1px solid var(--border);padding-top:8px;margin-top:4px">${s.notes}</p>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderDashDemo() {
+  const demo = [
+    { id:'1', name:'Ana Paula Silva', market:'Supermercado BIG', city:'Maringá', status:'done', cupsStart:120, cupsEnd:5, cupsUsed:115, bottles:18, startedAt:{seconds:Date.now()/1000-3600}, photos:{} },
+    { id:'2', name:'Juliana Costa', market:'Walmart Center', city:'Londrina', status:'active', cupsStart:100, startedAt:{seconds:Date.now()/1000-1800}, photos:{} },
+    { id:'3', name:'Mariana Souza', market:'Hiper Ideal', city:'Cascavel', status:'done', cupsStart:80, cupsEnd:0, cupsUsed:80, bottles:12, startedAt:{seconds:Date.now()/1000-7200}, photos:{} },
+  ];
+  allSessions = demo;
+  renderDash(demo);
+}
+
+// ──────────────────────────────
+//  UPLOAD
+// ──────────────────────────────
+async function uploadFile(file, path) {
+  if (!file) return '';
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ──────────────────────────────
+//  UI HELPERS
+// ──────────────────────────────
+function showLoading(msg='Aguarde...') {
+  document.getElementById('loading-text').textContent = msg;
+  document.getElementById('loading-overlay').classList.add('active');
+}
+function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
+
+let toastTimer;
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+function setBar(id, pct) {
+  const bar = document.getElementById('upload-bar-'+id);
+  const wrap = document.getElementById('upload-progress-'+id);
+  if (!bar || !wrap) return;
+  wrap.classList.add('active');
+  bar.style.width = pct + '%';
+}
+
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
+
+// ──────────────────────────────
+//  INIT
+// ──────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDiPCjrd-Soya5yZjzd9a4paoK5ZX8Vdi0",
+  authDomain: "maturi-trade-mkt.firebaseapp.com",
+  projectId: "maturi-trade-mkt",
+  storageBucket: "maturi-trade-mkt.firebasestorage.app",
+  messagingSenderId: "339064060918",
+  appId: "1:339064060918:web:623cfc3f956032ce5165d7"
+};
+
+window.addEventListener('load', () => {
+  initFirebase(FIREBASE_CONFIG);
+});
+</script>
+</body>
+</html>
