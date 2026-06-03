@@ -1151,15 +1151,14 @@ function changeLiveBottles(delta) {
   if (val < 0) val = 0
   valEl.value = val
   dispEl.textContent = val
-  // Debounce save: espera 800ms após última alteração
   clearTimeout(liveBottlesSaveTimer)
-  liveBottlesSaveTimer = setTimeout(() => saveLiveBottles(val), 800)
+  liveBottlesSaveTimer = setTimeout(() => saveLiveBottles(val), 600)
 }
 
 async function saveLiveBottles(val) {
-  if (!state.docId || !db) return
+  if (!sessionId || !db) return
   try {
-    await db.collection('actions').doc(state.docId).update({
+    await db.collection('sessions').doc(sessionId).update({
       liveBottles: val,
       liveBottlesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     })
@@ -1178,7 +1177,7 @@ function toggleRanking() {
   } else {
     panel.style.display = 'flex'
     loadRanking()
-    rankingInterval = setInterval(loadRanking, 30000)
+    rankingInterval = setInterval(loadRanking, 15000)
   }
 }
 
@@ -1193,61 +1192,71 @@ function closeRankingIfBackdrop(e) {
 
 async function loadRanking() {
   const listEl = document.getElementById('ranking-list')
-  if (!db) return
+  if (!db) { listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:20px">Sem conexão</p>'; return }
   try {
-    // Pega ações de hoje
+    // Busca todas as sessions de hoje (status active ou finished)
     const today = new Date()
-    today.setHours(0,0,0,0)
-    const snap = await db.collection('actions')
-      .where('startedAt', '>=', today)
+    today.setHours(0, 0, 0, 0)
+
+    // Busca sessions ativas (sem filtro de data para evitar necessidade de índice)
+    const snap = await db.collection('sessions')
+      .where('status', 'in', ['active', 'finished'])
       .get()
 
     if (snap.empty) {
-      listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:20px">Nenhuma ação hoje ainda</p>'
+      listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:20px">Nenhuma degustação hoje ainda</p>'
       return
     }
 
-    // Monta lista: { name, bottles, store }
     let entries = []
+    // Filtra por hoje no cliente (evita índice composto no Firestore)
+    const todayMs = today.getTime()
     snap.forEach(doc => {
       const d = doc.data()
-      const bottles = d.liveBottles || d.bottlesSold || 0
-      const name = d.deguName || d.name || '—'
-      const store = d.market || d.store || ''
-      entries.push({ name, bottles, store })
+      // Verifica se é de hoje
+      if (d.startedAt) {
+        const ts = d.startedAt.toDate ? d.startedAt.toDate().getTime() : new Date(d.startedAt).getTime()
+        if (ts < todayMs) return
+      }
+      const bottles = typeof d.liveBottles === 'number' ? d.liveBottles
+                    : typeof d.bottles === 'number' ? d.bottles : 0
+      const name = d.name || '—'
+      const market = d.market || ''
+      entries.push({ name, bottles, market })
     })
 
-    // Ordena por garrafas desc
-    entries.sort((a, b) => b.bottles - a.bottles)
+    // Ordena por garrafas desc, depois por nome
+    entries.sort((a, b) => b.bottles - a.bottles || a.name.localeCompare(b.name))
 
-    // Renderiza
-    const medals = ['🥇','🥈','🥉']
+    const medals = ['🥇', '🥈', '🥉']
     let html = ''
     entries.forEach((e, i) => {
-      const medal = medals[i] || `<span style="font-size:13px;color:var(--text-muted);min-width:24px;text-align:center">${i+1}°</span>`
+      const medal = i < 3
+        ? `<span style="font-size:24px;min-width:30px;text-align:center">${medals[i]}</span>`
+        : `<span style="font-size:13px;font-weight:700;color:var(--text-muted);min-width:30px;text-align:center">${i+1}°</span>`
       const isTop = i === 0 && e.bottles > 0
       html += `
         <div style="
           display:flex;align-items:center;gap:12px;
           padding:12px 14px;border-radius:12px;margin-bottom:8px;
-          background:${isTop ? 'rgba(201,150,42,0.12)' : 'rgba(255,255,255,0.04)'};
-          border:1px solid ${isTop ? 'rgba(201,150,42,0.4)' : 'rgba(255,255,255,0.06)'};
+          background:${isTop ? 'rgba(201,150,42,0.14)' : 'rgba(255,255,255,0.04)'};
+          border:1px solid ${isTop ? 'rgba(201,150,42,0.45)' : 'rgba(255,255,255,0.07)'};
         ">
-          <span style="font-size:22px;min-width:28px;text-align:center">${medal}</span>
+          ${medal}
           <div style="flex:1;min-width:0">
             <div style="font-weight:700;font-size:14px;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.name}</div>
-            ${e.store ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${e.store}</div>` : ''}
+            ${e.market ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${e.market}</div>` : ''}
           </div>
-          <div style="text-align:right">
-            <div style="font-family:'Moche',serif;font-size:22px;font-weight:800;color:var(--gold);line-height:1">${e.bottles}</div>
-            <div style="font-size:10px;color:var(--text-muted)">garrafas</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:'Moche',serif;font-size:26px;font-weight:800;color:var(--gold);line-height:1">${e.bottles}</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:1px">garrafas</div>
           </div>
         </div>`
     })
     listEl.innerHTML = html
   } catch(err) {
     console.error('Erro ranking:', err)
-    listEl.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:14px;padding:20px">Erro ao carregar ranking</p>'
+    listEl.innerHTML = `<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px">Erro: ${err.message}</p>`
   }
 }
 
