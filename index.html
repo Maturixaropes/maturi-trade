@@ -38,22 +38,18 @@
   }
 
   html, body {
-    height: 100%;
+    min-height: 100%;
     background: var(--dark);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
     font-size: 15px;
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
+    overflow-x: hidden;
   }
 
   #app {
-    height: 100vh;
-    height: 100dvh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
     position: relative;
     max-width: 480px;
     margin: 0 auto;
@@ -63,19 +59,14 @@
   .screen {
     display: none;
     flex-direction: column;
-    height: 100%;
-    overflow-y: scroll;
-    overflow-x: hidden;
+    min-height: 100vh;
     padding: 0;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
   .screen.active { display: flex; }
 
   /* ── TOP BAR ── */
   .topbar {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 100;
     background: var(--dark);
     padding: 16px 20px 12px;
