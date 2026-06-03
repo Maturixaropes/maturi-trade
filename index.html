@@ -864,7 +864,6 @@ function initFirebase(cfg) {
   try {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     db = firebase.firestore();
-    document.getElementById('config-modal').style.display = 'none';
     showToast('Firebase conectado! ✓', 'success');
     showScreen('login');
     document.getElementById('dash-toggle').style.display = 'block';
