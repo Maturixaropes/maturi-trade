@@ -11,79 +11,8 @@
 <title>Maturí Trade — Degustação</title>
 
 <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
-// ──────────────────────────────
-//  STORE DATA + AUTOCOMPLETE
-// ──────────────────────────────
-const REDES = ['CONDOR','ADORATO','ADEGA BRASIL','MAX MUFFATO','ADEGA FANNY','SUPER VITOR','DAL POZZO','SUPERPÃO','FAMILIA FARINHA','SUPERDIA / ITALO','VICARI','FESTVAL','CARREFOUR','ASSAI','TOZETTO','PALMEIRA','COOPER','SUPERVILLE'];
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 
-const UNIDADES = {
-  'CONDOR':['SANTA FELICIDADE','LAPA','WENCESLAU BRAZ','PINHEIRINHO','MARECHAL','PARANAGUA CENTRO','LONDRINA','CAMPO COMPRIDO','SAO BRAZ','TROCAS','SITIO CERCADO','SAO JOSE DOS PINHAIS','APUCARANA','HORTIFRUTI','AHU','PONTA GROSSA CENTRO','PONTA GROSSA NOVA RUSSIA','MARINGA AV PARANA','NILO PECANHA','CHAMPAGNAT','ARAUCARIA BR','SANTA CANDIDA','PARANAGUA RAIA','TORRES','NOVO MUNDO','CRISTO REI','AGUA VERDE','FAZENDA RIO GRANDE','CAMPO LARGO','UVARANAS','SAO JOSE RUA JOINVILLE','BRASILIA','CASTRO','CAJURU','COLOMBO','PINHAIS','MARINGA AV COLOMBO','CAMPO MOURAO','PONTA GROSSA JARDIM CARVALHO','ALMIRANTE TAMANDARE','PONTA GROSSA OFICINAS','ARAUCARIA COSTEIRA','CAMPO LARGO SAO JOSE','PINHAIS AV IRAI','JOINVILLE ITAUM','BOA VISTA','SANTA QUITERIA','JOINVILLE AMERICA','MAFRA CENTRO II','JOAO BETTEGA','FRANCISCO DEROSSO','JARAGUA DO SUL','PIRAQUARA','JOINVILLE BOA VISTA','PILARZINHO','CD MARINGA','MARINGA AV DR LUIZ TEIXEIRA','JARDIM DAS AMERICAS','PROFIPO','MARINGA AV KAKOGAWA','GRALHA AZUL','RIO NEGRO','BARREIRINHA','PONTA GROSSA ERNESTO VILELA','HIPERMAIS VILA NOVA','HIPERMAIS SHOPPING','HIPERMAIS PARANAGUAMIRIM','ARAUCARIA CAPELA VELHA','HIPERMAIS FATIMA','HIPERMAIS JOAO COSTA','HIPERMAIS ARAQUARI','HIPERMAIS PROFIPO','HIPERMAIS JARAGUA','HIPERMAIS MAFRA BAIXADA','RIO NEGRINHO','SAO BENTO DO SUL CENTRO','SAO BENTO DO SUL SERRA','HIPERMAIS COLONIAL S BENTO','CONDOR CIC JK','CONDOR MERCES','GIGANTE PINHAIS','GIGANTE COLOMBO ROCA GRANDE','CONDOR SJP RUI BARBOSA','CONDOR TARUMA','ZONTA'],
-  'ADORATO':['ADORATO'],
-  'ADEGA BRASIL':['ADEGA PINHAIS','ADEGA RUA DA PAZ'],
-  'MAX MUFFATO':['BAIRRO ALTO','JK CIC','TORRES FLOW'],
-  'ADEGA FANNY':['ADEGA FANNY'],
-  'SUPER VITOR':['SUPER VITOR'],
-  'DAL POZZO':['DAL POZZO HOME CENTER','DAL POZZO HIPER','DAL POZZO SUPER'],
-  'SUPERPÃO':['HIPER','SALDANHA','XV DE NOVEMBRO','PRUDENTE','SAO RAFAEL','CENTRO'],
-  'FAMILIA FARINHA':['FAMILIA FARINHA'],
-  'SUPERDIA / ITALO':['SUPERDIA FAZENDINHA','SUPERDIA TARUMA','SUPERDIA XAXIM','SUPERDIA PATO BRANCO PB SHOPPING','SUPERDIA NOVO MUNDO','ITALO FRANCISCO BELTAO','SUPERDIA FOZ COSTA E SILVA','SUPER DIA FRANCISCO BELTRAO MINIGUACU','ITALO FOZ DO IGUACU CENTRO'],
-  'VICARI':['VICARI'],
-  'FESTVAL':['FESTVAL'],
-  'CARREFOUR':['CARREFOUR'],
-  'ASSAI':['ASSAI'],
-  'TOZETTO':['TOZETTO'],
-  'PALMEIRA':['PALMEIRA'],
-  'COOPER':['COOPER TIMBO','COOPER OMINO','COOPER MAFISA','COOPER VILA NOVA','COOP ITOUPAVA NORTE','COOPER AGUA VERDE','COOP INDAIAL CENTRO','GARCIA'],
-  'SUPERVILLE':['SUPERVILLE']
-};
-
-function normalize(s){ return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
-
-function filterAC(type) {
-  const isMarket = type === 'market';
-  const inputEl = document.getElementById(isMarket ? 'login-market' : 'login-unit');
-  const dropEl = document.getElementById('ac-' + type);
-  const val = normalize(inputEl.value);
-
-  let items = [];
-  if (isMarket) {
-    items = REDES.filter(r => normalize(r).includes(val));
-  } else {
-    const rede = normalize(document.getElementById('login-market').value);
-    const matchedRede = REDES.find(r => normalize(r) === rede);
-    const pool = matchedRede ? (UNIDADES[matchedRede] || []) : Object.values(UNIDADES).flat();
-    items = pool.filter(u => normalize(u).includes(val));
-  }
-
-  if (!items.length || !val) { dropEl.classList.remove('open'); return; }
-  dropEl.innerHTML = items.slice(0,10).map(item =>
-    `<div class="ac-item" onmousedown="selectAC('${type}','${item.replace(/'/g,"\'")}')">
-      ${item}
-    </div>`).join('');
-  dropEl.classList.add('open');
-}
-
-function selectAC(type, value) {
-  const isMarket = type === 'market';
-  document.getElementById(isMarket ? 'login-market' : 'login-unit').value = value;
-  document.getElementById('ac-' + type).classList.remove('open');
-  if (isMarket) {
-    const rede = REDES.find(r => r === value);
-    if (rede && UNIDADES[rede] && UNIDADES[rede].length === 1) {
-      document.getElementById('login-unit').value = UNIDADES[rede][0];
-    } else {
-      document.getElementById('login-unit').value = '';
-      setTimeout(() => { document.getElementById('login-unit').focus(); filterAC('unit'); }, 100);
-    }
-  }
-}
-
-function hideAC(type) {
-  const el = document.getElementById('ac-' + type);
-  if (el) el.classList.remove('open');
-}
-</script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <!-- Google Fonts -->
@@ -622,18 +551,27 @@ function hideAC(type) {
 
   /* ── AUTOCOMPLETE ── */
   .ac-dropdown {
-    position:absolute; top:100%; left:0; right:0; z-index:200;
-    background:var(--dark-3); border:1px solid var(--gold);
-    border-radius:var(--radius-sm); max-height:200px; overflow-y:auto;
-    display:none; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    display:none;
+    margin-top:6px;
+    background:var(--dark-4);
+    border:1.5px solid var(--gold);
+    border-radius:var(--radius-sm);
+    max-height:220px;
+    overflow-y:auto;
   }
   .ac-dropdown.open { display:block; }
   .ac-item {
-    padding:12px 16px; font-size:14px; cursor:pointer;
-    border-bottom:1px solid var(--border); transition:background 0.15s;
+    padding:14px 16px;
+    font-size:15px;
+    cursor:pointer;
+    border-bottom:1px solid var(--border);
+    transition:background 0.15s;
+    color:var(--text);
+    -webkit-tap-highlight-color: transparent;
   }
   .ac-item:last-child { border-bottom:none; }
-  .ac-item:hover, .ac-item.selected { background:rgba(201,168,76,0.15); color:var(--gold); }
+  .ac-item:active, .ac-item:hover { background:rgba(201,150,42,0.2); color:var(--gold); font-weight:600; }
+  .ac-empty { padding:12px 16px; font-size:13px; color:var(--text-muted); font-style:italic; }
 </style>
 </head>
 <body>
@@ -671,18 +609,20 @@ function hideAC(type) {
 
       <div class="card">
         <div class="card-label">Rede / Bandeira</div>
-        <div class="input-wrap" style="position:relative">
-          <input type="text" id="login-market" placeholder="Ex: Condor, Carrefour..." autocapitalize="characters" autocomplete="off" oninput="filterAC('market')" onfocus="filterAC('market')" onblur="setTimeout(()=>hideAC('market'),200)">
-          <div id="ac-market" class="ac-dropdown"></div>
+        <div class="input-wrap">
+          <input type="text" id="login-market" placeholder="Digite para buscar a rede..." autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
+            oninput="filterAC('market')" onfocus="filterAC('market')" onblur="setTimeout(()=>hideAC('market'),250)">
         </div>
+        <div id="ac-market" class="ac-dropdown"></div>
       </div>
 
       <div class="card">
         <div class="card-label">Unidade / Loja</div>
-        <div class="input-wrap" style="position:relative">
-          <input type="text" id="login-unit" placeholder="Ex: Condor Lapa, Muffato JK..." autocapitalize="characters" autocomplete="off" oninput="filterAC('unit')" onfocus="filterAC('unit')" onblur="setTimeout(()=>hideAC('unit'),200)">
-          <div id="ac-unit" class="ac-dropdown"></div>
+        <div class="input-wrap">
+          <input type="text" id="login-unit" placeholder="Digite para buscar a loja..." autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
+            oninput="filterAC('unit')" onfocus="filterAC('unit')" onblur="setTimeout(()=>hideAC('unit'),250)">
         </div>
+        <div id="ac-unit" class="ac-dropdown"></div>
       </div>
 
       <button class="btn btn-primary" onclick="doLogin()">Iniciar minha ação →</button>
@@ -975,9 +915,14 @@ function doLogin() {
   const market = document.getElementById('login-market').value.trim().toUpperCase();
   const unit = document.getElementById('login-unit').value.trim().toUpperCase();
   if (!name) { showToast('Digite seu nome completo', 'error'); return; }
-  if (!market) { showToast('Informe a rede/bandeira', 'error'); return; }
-  if (!unit) { showToast('Informe a unidade/loja', 'error'); return; }
-  state.name = name; state.market = market; state.city = unit;
+  if (!market) { showToast('Selecione uma rede da lista', 'error'); return; }
+  const redeValida = REDES.find(r => normalize(r) === normalize(market));
+  if (!redeValida) { showToast('Rede não encontrada. Selecione da lista.', 'error'); document.getElementById('login-market').focus(); return; }
+  if (!unit) { showToast('Selecione uma unidade/loja', 'error'); return; }
+  const unidades = UNIDADES[redeValida] || [];
+  const unidadeValida = unidades.find(u => normalize(u) === normalize(unit));
+  if (!unidadeValida) { showToast('Loja não encontrada. Selecione da lista.', 'error'); document.getElementById('login-unit').focus(); return; }
+  state.name = name; state.market = redeValida; state.city = unidadeValida;
   sessionId = 'sess_' + Date.now();
   document.getElementById('topbar-name-start').textContent = name.split(' ')[0];
   document.getElementById('topbar-name-during').textContent = name.split(' ')[0];
@@ -1382,6 +1327,90 @@ const FIREBASE_CONFIG = {
 window.addEventListener('load', () => {
   initFirebase(FIREBASE_CONFIG);
 });
+
+// ──────────────────────────────
+//  STORE DATA + AUTOCOMPLETE
+// ──────────────────────────────
+// ──────────────────────────────
+//  STORE DATA + AUTOCOMPLETE
+// ──────────────────────────────
+const REDES = ['CONDOR','ADORATO','ADEGA BRASIL','MAX MUFFATO','ADEGA FANNY','SUPER VITOR','DAL POZZO','SUPERPÃO','FAMILIA FARINHA','SUPERDIA / ITALO','VICARI','FESTVAL','CARREFOUR','ASSAI','TOZETTO','PALMEIRA','COOPER','SUPERVILLE'];
+
+const UNIDADES = {
+  'CONDOR':['SANTA FELICIDADE','LAPA','WENCESLAU BRAZ','PINHEIRINHO','MARECHAL','PARANAGUA CENTRO','LONDRINA','CAMPO COMPRIDO','SAO BRAZ','TROCAS','SITIO CERCADO','SAO JOSE DOS PINHAIS','APUCARANA','HORTIFRUTI','AHU','PONTA GROSSA CENTRO','PONTA GROSSA NOVA RUSSIA','MARINGA AV PARANA','NILO PECANHA','CHAMPAGNAT','ARAUCARIA BR','SANTA CANDIDA','PARANAGUA RAIA','TORRES','NOVO MUNDO','CRISTO REI','AGUA VERDE','FAZENDA RIO GRANDE','CAMPO LARGO','UVARANAS','SAO JOSE RUA JOINVILLE','BRASILIA','CASTRO','CAJURU','COLOMBO','PINHAIS','MARINGA AV COLOMBO','CAMPO MOURAO','PONTA GROSSA JARDIM CARVALHO','ALMIRANTE TAMANDARE','PONTA GROSSA OFICINAS','ARAUCARIA COSTEIRA','CAMPO LARGO SAO JOSE','PINHAIS AV IRAI','JOINVILLE ITAUM','BOA VISTA','SANTA QUITERIA','JOINVILLE AMERICA','MAFRA CENTRO II','JOAO BETTEGA','FRANCISCO DEROSSO','JARAGUA DO SUL','PIRAQUARA','JOINVILLE BOA VISTA','PILARZINHO','CD MARINGA','MARINGA AV DR LUIZ TEIXEIRA','JARDIM DAS AMERICAS','PROFIPO','MARINGA AV KAKOGAWA','GRALHA AZUL','RIO NEGRO','BARREIRINHA','PONTA GROSSA ERNESTO VILELA','HIPERMAIS VILA NOVA','HIPERMAIS SHOPPING','HIPERMAIS PARANAGUAMIRIM','ARAUCARIA CAPELA VELHA','HIPERMAIS FATIMA','HIPERMAIS JOAO COSTA','HIPERMAIS ARAQUARI','HIPERMAIS PROFIPO','HIPERMAIS JARAGUA','HIPERMAIS MAFRA BAIXADA','RIO NEGRINHO','SAO BENTO DO SUL CENTRO','SAO BENTO DO SUL SERRA','HIPERMAIS COLONIAL S BENTO','CONDOR CIC JK','CONDOR MERCES','GIGANTE PINHAIS','GIGANTE COLOMBO ROCA GRANDE','CONDOR SJP RUI BARBOSA','CONDOR TARUMA','ZONTA'],
+  'ADORATO':['ADORATO'],
+  'ADEGA BRASIL':['ADEGA PINHAIS','ADEGA RUA DA PAZ'],
+  'MAX MUFFATO':['BAIRRO ALTO','JK CIC','TORRES FLOW'],
+  'ADEGA FANNY':['ADEGA FANNY'],
+  'SUPER VITOR':['SUPER VITOR'],
+  'DAL POZZO':['DAL POZZO HOME CENTER','DAL POZZO HIPER','DAL POZZO SUPER'],
+  'SUPERPÃO':['HIPER','SALDANHA','XV DE NOVEMBRO','PRUDENTE','SAO RAFAEL','CENTRO'],
+  'FAMILIA FARINHA':['FAMILIA FARINHA'],
+  'SUPERDIA / ITALO':['SUPERDIA FAZENDINHA','SUPERDIA TARUMA','SUPERDIA XAXIM','SUPERDIA PATO BRANCO PB SHOPPING','SUPERDIA NOVO MUNDO','ITALO FRANCISCO BELTAO','SUPERDIA FOZ COSTA E SILVA','SUPER DIA FRANCISCO BELTRAO MINIGUACU','ITALO FOZ DO IGUACU CENTRO'],
+  'VICARI':['VICARI'],
+  'FESTVAL':['FESTVAL'],
+  'CARREFOUR':['CARREFOUR'],
+  'ASSAI':['ASSAI'],
+  'TOZETTO':['TOZETTO'],
+  'PALMEIRA':['PALMEIRA'],
+  'COOPER':['COOPER TIMBO','COOPER OMINO','COOPER MAFISA','COOPER VILA NOVA','COOP ITOUPAVA NORTE','COOPER AGUA VERDE','COOP INDAIAL CENTRO','GARCIA'],
+  'SUPERVILLE':['SUPERVILLE']
+};
+
+function normalize(s){ return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
+
+function filterAC(type) {
+  const isMarket = type === 'market';
+  const inputEl = document.getElementById(isMarket ? 'login-market' : 'login-unit');
+  const dropEl = document.getElementById('ac-' + type);
+  const val = normalize(inputEl.value.trim());
+
+  let pool = [];
+  if (isMarket) {
+    pool = REDES;
+  } else {
+    const redeInput = normalize(document.getElementById('login-market').value.trim());
+    const matchedRede = REDES.find(r => normalize(r) === redeInput);
+    pool = matchedRede ? (UNIDADES[matchedRede] || []) : Object.values(UNIDADES).flat();
+  }
+
+  const items = val ? pool.filter(r => normalize(r).includes(val)) : pool;
+
+  if (!items.length) {
+    dropEl.innerHTML = '<div class="ac-empty">Nenhum resultado encontrado</div>';
+    dropEl.classList.add('open');
+    return;
+  }
+
+  dropEl.innerHTML = items.slice(0, 15).map(item => {
+    const display = val
+      ? item.replace(new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<strong style="color:var(--gold)">${m}</strong>`)
+      : item;
+    return `<div class="ac-item" onmousedown="selectAC('${type}','${item.replace(/'/g,"\'")}')"> ${display}</div>`;
+  }).join('');
+  dropEl.classList.add('open');
+}
+
+function selectAC(type, value) {
+  const isMarket = type === 'market';
+  document.getElementById(isMarket ? 'login-market' : 'login-unit').value = value;
+  document.getElementById('ac-' + type).classList.remove('open');
+  if (isMarket) {
+    const rede = REDES.find(r => r === value);
+    if (rede && UNIDADES[rede] && UNIDADES[rede].length === 1) {
+      document.getElementById('login-unit').value = UNIDADES[rede][0];
+    } else {
+      document.getElementById('login-unit').value = '';
+      setTimeout(() => { document.getElementById('login-unit').focus(); filterAC('unit'); }, 100);
+    }
+  }
+}
+
+function hideAC(type) {
+  const el = document.getElementById('ac-' + type);
+  if (el) el.classList.remove('open');
+}
+
 </script>
 </body>
 </html>
