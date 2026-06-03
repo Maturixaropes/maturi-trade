@@ -550,6 +550,67 @@
 
 
   /* ── AUTOCOMPLETE ── */
+  /* ── PICKER MODAL ── */
+  .picker-display {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 4px 0; font-size:15px; font-weight:500;
+  }
+  #picker-overlay {
+    display:none; position:fixed; inset:0; z-index:500;
+    background:rgba(0,0,0,0.6); flex-direction:column;
+    justify-content:flex-end;
+  }
+  #picker-overlay.open { display:flex; }
+  #picker-sheet {
+    background:var(--dark-2);
+    border-radius:20px 20px 0 0;
+    border-top:1px solid var(--border);
+    max-height:80vh;
+    display:flex; flex-direction:column;
+    padding-bottom:env(safe-area-inset-bottom, 16px);
+  }
+  #picker-header {
+    padding:16px 20px 12px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
+  }
+  #picker-title { font-family:'Moche',serif; font-size:18px; color:var(--cream); }
+  #picker-close {
+    background:var(--dark-4); border:none; color:var(--text-muted);
+    border-radius:50%; width:32px; height:32px; font-size:16px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  #picker-search-wrap {
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  #picker-search {
+    width:100%; background:var(--dark-4);
+    border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-family:'DM Sans',sans-serif;
+    font-size:16px; padding:12px 16px; outline:none;
+  }
+  #picker-search:focus { border-color:var(--gold); }
+  #picker-list {
+    overflow-y:auto; flex:1;
+    -webkit-overflow-scrolling:touch;
+  }
+  .picker-item {
+    padding:16px 20px;
+    font-size:15px;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+    color:var(--text);
+    display:flex; align-items:center; justify-content:space-between;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .picker-item:active { background:rgba(201,150,42,0.15); }
+  .picker-item .match { color:var(--gold); font-weight:700; }
+  .picker-item.selected { background:rgba(201,150,42,0.1); color:var(--gold); }
+  .picker-empty { padding:24px; text-align:center; color:var(--text-muted); font-size:14px; }
+
   .ac-dropdown {
     display:none;
     margin-top:6px;
@@ -561,13 +622,19 @@
   }
   .ac-dropdown.open { display:block; }
   .ac-item {
-    padding:14px 16px;
+    padding:16px 16px;
     font-size:15px;
     cursor:pointer;
     border-bottom:1px solid var(--border);
     transition:background 0.15s;
     color:var(--text);
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
   }
   .ac-item:last-child { border-bottom:none; }
   .ac-item:active, .ac-item:hover { background:rgba(201,150,42,0.2); color:var(--gold); font-weight:600; }
@@ -588,6 +655,20 @@
 
 <div id="toast"></div>
 
+<!-- PICKER MODAL -->
+<div id="picker-overlay" onclick="closePicker(event)">
+  <div id="picker-sheet">
+    <div id="picker-header">
+      <span id="picker-title">Selecionar</span>
+      <button id="picker-close" onclick="closePicker()">✕</button>
+    </div>
+    <div id="picker-search-wrap">
+      <input type="text" id="picker-search" placeholder="Buscar..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="filterPicker()">
+    </div>
+    <div id="picker-list"></div>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
 
@@ -607,22 +688,22 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" onclick="openPicker('market')">
         <div class="card-label">Rede / Bandeira</div>
-        <div class="input-wrap">
-          <input type="text" id="login-market" placeholder="Digite para buscar a rede..." autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
-            oninput="filterAC('market')" onfocus="filterAC('market')" onblur="setTimeout(()=>hideAC('market'),250)">
+        <div class="picker-display" id="display-market">
+          <span id="display-market-text" style="color:var(--text-muted)">Toque para selecionar a rede...</span>
+          <span style="color:var(--gold);font-size:18px">›</span>
         </div>
-        <div id="ac-market" class="ac-dropdown"></div>
+        <input type="hidden" id="login-market">
       </div>
 
-      <div class="card">
+      <div class="card" id="card-unit" onclick="openPicker('unit')" style="opacity:0.5;pointer-events:none">
         <div class="card-label">Unidade / Loja</div>
-        <div class="input-wrap">
-          <input type="text" id="login-unit" placeholder="Digite para buscar a loja..." autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
-            oninput="filterAC('unit')" onfocus="filterAC('unit')" onblur="setTimeout(()=>hideAC('unit'),250)">
+        <div class="picker-display" id="display-unit">
+          <span id="display-unit-text" style="color:var(--text-muted)">Selecione a rede primeiro...</span>
+          <span style="color:var(--gold);font-size:18px">›</span>
         </div>
-        <div id="ac-unit" class="ac-dropdown"></div>
+        <input type="hidden" id="login-unit">
       </div>
 
       <button class="btn btn-primary" onclick="doLogin()">Iniciar minha ação →</button>
@@ -842,7 +923,7 @@
 
 <!-- DASHBOARD TOGGLE -->
 <div id="dash-toggle" style="position:fixed;bottom:20px;right:20px;z-index:500;display:none">
-  <button class="btn btn-primary btn-sm" style="width:auto;padding:10px 18px;border-radius:30px;box-shadow:0 4px 16px rgba(201,168,76,0.3)" onclick="toggleDash()">📊</button>
+  <button class="btn btn-primary btn-sm" style="width:auto;padding:10px 18px;border-radius:30px;box-shadow:0 4px 16px rgba(201,150,42,0.3)" onclick="window.open('dashboard.html','_blank')">📊 Dashboard</button>
 </div>
 
 <script>
@@ -1359,6 +1440,91 @@ const UNIDADES = {
 
 function normalize(s){ return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
 
+// ── PICKER ──
+let pickerType = '';
+let pickerItems = [];
+
+function openPicker(type) {
+  pickerType = type;
+  const isMarket = type === 'market';
+  document.getElementById('picker-title').textContent = isMarket ? 'Selecionar Rede' : 'Selecionar Loja';
+  if (isMarket) {
+    pickerItems = REDES;
+  } else {
+    const rede = document.getElementById('login-market').value;
+    const matchedRede = REDES.find(r => r === rede);
+    pickerItems = matchedRede ? (UNIDADES[matchedRede] || []) : [];
+  }
+  document.getElementById('picker-search').value = '';
+  renderPickerList(pickerItems);
+  document.getElementById('picker-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('picker-search').focus(), 300);
+}
+
+function closePicker(e) {
+  if (e && e.target !== document.getElementById('picker-overlay')) return;
+  document.getElementById('picker-overlay').classList.remove('open');
+  document.getElementById('picker-search').blur();
+}
+
+function filterPicker() {
+  const val = normalize(document.getElementById('picker-search').value.trim());
+  const filtered = val ? pickerItems.filter(i => normalize(i).includes(val)) : pickerItems;
+  renderPickerList(filtered);
+}
+
+function renderPickerList(items) {
+  const val = normalize(document.getElementById('picker-search').value.trim());
+  const current = pickerType === 'market'
+    ? document.getElementById('login-market').value
+    : document.getElementById('login-unit').value;
+  const el = document.getElementById('picker-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="picker-empty">Nenhum resultado encontrado</div>';
+    return;
+  }
+  el.innerHTML = items.map(item => {
+    const selected = item === current ? ' selected' : '';
+    const display = val
+      ? item.replace(new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<span class="match">${m}</span>`)
+      : item;
+    return `<div class="picker-item${selected}" onclick="selectPicker('${item.replace(/'/g,"\'")}')">
+      <span>${display}</span>${selected ? '<span style="color:var(--gold)">✓</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectPicker(value) {
+  document.getElementById('picker-overlay').classList.remove('open');
+  if (pickerType === 'market') {
+    document.getElementById('login-market').value = value;
+    document.getElementById('display-market-text').textContent = value;
+    document.getElementById('display-market-text').style.color = 'var(--cream)';
+    // Reset unit
+    document.getElementById('login-unit').value = '';
+    document.getElementById('display-unit-text').textContent = 'Toque para selecionar a loja...';
+    document.getElementById('display-unit-text').style.color = 'var(--text-muted)';
+    // Enable unit card
+    const unitCard = document.getElementById('card-unit');
+    unitCard.style.opacity = '1';
+    unitCard.style.pointerEvents = 'auto';
+    // Auto-fill if only 1 unit
+    const matchedRede = REDES.find(r => r === value);
+    if (matchedRede && UNIDADES[matchedRede] && UNIDADES[matchedRede].length === 1) {
+      selectPicker_unit(UNIDADES[matchedRede][0]);
+    }
+  } else {
+    selectPicker_unit(value);
+  }
+}
+
+function selectPicker_unit(value) {
+  document.getElementById('login-unit').value = value;
+  document.getElementById('display-unit-text').textContent = value;
+  document.getElementById('display-unit-text').style.color = 'var(--cream)';
+}
+
+// keep old functions as stubs to avoid errors
 function filterAC(type) {
   const isMarket = type === 'market';
   const inputEl = document.getElementById(isMarket ? 'login-market' : 'login-unit');
@@ -1386,7 +1552,7 @@ function filterAC(type) {
     const display = val
       ? item.replace(new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<strong style="color:var(--gold)">${m}</strong>`)
       : item;
-    return `<div class="ac-item" onmousedown="selectAC('${type}','${item.replace(/'/g,"\'")}')"> ${display}</div>`;
+    return `<div class="ac-item" ontouchstart="selectAC('${type}','${item.replace(/'/g,"\'")}');event.preventDefault();" onmousedown="selectAC('${type}','${item.replace(/'/g,"\'")}');event.preventDefault();"> ${display}</div>`;
   }).join('');
   dropEl.classList.add('open');
 }
