@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0F0F1A">
+<title>Maturí — Dashboard Gestor</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C9A84C;--gold-light:#E8C97A;--gold-dark:#9A7A30;
+  --dark:#0F0F1A;--dark-2:#1A1A2E;--dark-3:#252540;--dark-4:#32324F;
+  --text:#F0EDE6;--text-muted:#9896B0;
+  --success:#4CAF7C;--danger:#E25757;--warning:#E8A030;
+  --border:rgba(201,168,76,0.2);--radius:16px;--radius-sm:10px;
+}
+html,body{min-height:100%;background:var(--dark);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;}
+
+/* LOGIN */
+#login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--dark);padding:24px;
+}
+.login-box{
+  width:100%;max-width:400px;background:var(--dark-3);
+  border:1px solid var(--border);border-radius:var(--radius);padding:40px 32px;
+  display:flex;flex-direction:column;gap:20px;
+}
+.login-logo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--gold);text-align:center;}
+.login-logo span{color:var(--text);}
+.login-sub{text-align:center;color:var(--text-muted);font-size:13px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;}
+input[type="password"],input[type="text"]{
+  background:var(--dark-4);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;
+  padding:14px 16px;width:100%;outline:none;transition:border-color 0.2s;
+}
+input:focus{border-color:var(--gold);}
+input::placeholder{color:var(--text-muted);}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:50px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;
+  padding:14px 24px;cursor:pointer;border:none;transition:opacity 0.2s;width:100%;
+}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.btn-primary{background:var(--gold);color:var(--dark);}
+.btn-ghost{background:var(--dark-4);color:var(--text);border:1px solid var(--border);}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:30px;}
+.err-msg{color:var(--danger);font-size:13px;text-align:center;display:none;}
+
+/* DASHBOARD */
+#dash-screen{display:none;min-height:100vh;flex-direction:column;}
+
+/* HEADER */
+.dash-header{
+  background:var(--dark-2);border-bottom:1px solid var(--border);
+  padding:16px 24px;position:sticky;top:0;z-index:100;
+}
+.dash-header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.dash-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--gold);}
+.dash-title span{color:var(--text);}
+.header-actions{display:flex;gap:8px;align-items:center;}
+
+/* STATS */
+.stats-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  padding:20px 24px;background:var(--dark-2);border-bottom:1px solid var(--border);
+}
+@media(max-width:600px){.stats-bar{grid-template-columns:repeat(2,1fr);}}
+.stat-card{
+  background:var(--dark-3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:14px;text-align:center;
+}
+.stat-value{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--gold);}
+.stat-label{font-size:11px;color:var(--text-muted);margin-top:3px;text-transform:uppercase;letter-spacing:0.05em;}
+
+/* FILTERS */
+.filters{
+  padding:16px 24px;background:var(--dark-2);border-bottom:1px solid var(--border);
+  display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;
+}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:140px;}
+.filter-group label{font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;}
+select{
+  background:var(--dark-4);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  padding:8px 12px;outline:none;cursor:pointer;
+}
+select:focus{border-color:var(--gold);}
+input[type="text"].search-input{
+  background:var(--dark-4);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  padding:8px 12px;outline:none;min-width:180px;
+}
+input[type="text"].search-input:focus{border-color:var(--gold);}
+
+/* MAIN CONTENT */
+.dash-content{padding:24px;display:flex;flex-direction:column;gap:16px;}
+
+/* SESSION CARD */
+.session-card{
+  background:var(--dark-3);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;
+  transition:border-color 0.2s;
+}
+.session-card:hover{border-color:rgba(201,168,76,0.4);}
+.session-card-header{
+  padding:16px 20px;display:flex;align-items:flex-start;
+  justify-content:space-between;gap:12px;cursor:pointer;
+}
+.session-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.session-meta{font-size:12px;color:var(--text-muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;}
+.meta-tag{
+  background:var(--dark-4);border:1px solid var(--border);
+  border-radius:20px;padding:2px 10px;font-size:12px;
+}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;
+}
+.badge-active{background:rgba(76,175,124,0.15);color:var(--success);}
+.badge-done{background:rgba(201,168,76,0.15);color:var(--gold);}
+
+.session-body{display:none;border-top:1px solid var(--border);}
+.session-body.open{display:block;}
+
+/* METRICS ROW */
+.metrics-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+}
+.metric{text-align:center;}
+.metric-value{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;}
+.metric-label{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.metric-value.gold{color:var(--gold);}
+.metric-value.green{color:var(--success);}
+.metric-value.blue{color:#5B9BD5;}
+
+/* PHOTOS SECTION */
+.photos-section{padding:16px 20px;}
+.photos-title{font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;}
+.photos-group{margin-bottom:14px;}
+.photos-group-label{font-size:11px;color:var(--gold);margin-bottom:6px;font-weight:600;}
+.photos-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.photo-thumb{
+  width:80px;height:80px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--border);cursor:pointer;
+  background:var(--dark-4);display:flex;align-items:center;justify-content:center;
+  position:relative;transition:border-color 0.2s;
+}
+.photo-thumb:hover{border-color:var(--gold);}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.photo-loading{font-size:18px;animation:pulse 1s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* NOTES */
+.notes-section{
+  padding:12px 20px 16px;border-top:1px solid var(--border);
+  font-size:13px;color:var(--text-muted);line-height:1.5;
+}
+.notes-section strong{color:var(--text);}
+
+/* EMPTY */
+.empty{
+  text-align:center;padding:60px 24px;color:var(--text-muted);
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.empty-icon{font-size:48px;opacity:0.5;}
+
+/* LIGHTBOX */
+#lightbox{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.92);z-index:9999;
+  align-items:center;justify-content:center;
+}
+#lightbox.active{display:flex;}
+#lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;}
+#lightbox-close{
+  position:absolute;top:16px;right:16px;
+  background:rgba(255,255,255,0.1);border:none;color:white;
+  border-radius:50%;width:40px;height:40px;font-size:20px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+#lightbox-prev,#lightbox-next{
+  position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(255,255,255,0.1);border:none;color:white;
+  border-radius:50%;width:44px;height:44px;font-size:22px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+#lightbox-prev{left:16px;}
+#lightbox-next{right:60px;}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--dark-3);border:1px solid var(--border);
+  color:var(--text);padding:10px 20px;border-radius:24px;
+  font-size:14px;z-index:9998;transition:transform 0.3s;white-space:nowrap;
+}
+#toast.show{transform:translateX(-50%) translateY(0);}
+#toast.success{border-color:var(--success);}
+#toast.error{border-color:var(--danger);}
+
+/* LOADING */
+#loading{
+  display:none;position:fixed;inset:0;
+  background:rgba(15,15,26,0.8);z-index:9997;
+  align-items:center;justify-content:center;flex-direction:column;gap:12px;
+}
+#loading.active{display:flex;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{color:var(--text-muted);font-size:14px;}
+
+/* EXPORT BTN */
+.export-row{padding:0 24px 24px;display:flex;gap:10px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><p>Carregando...</p></div>
+<div id="toast"></div>
+
+<div id="lightbox">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button id="lightbox-prev" onclick="lightboxNav(-1)">‹</button>
+  <button id="lightbox-next" onclick="lightboxNav(1)">›</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Maturí<span> Trade</span></div>
+    <div class="login-sub">Painel do Gestor — Acesso restrito</div>
+    <div class="field">
+      <label>Senha de acesso</label>
+      <input type="password" id="pwd-input" placeholder="Digite a senha" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="err-msg" id="err-msg">Senha incorreta. Tente novamente.</div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar →</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash-screen">
+
+  <div class="dash-header">
+    <div class="dash-header-top">
+      <div class="dash-title">Maturí<span> — Dashboard</span></div>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-sm" onclick="loadSessions()">↻ Atualizar</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--danger);border-color:var(--danger)">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label">Total ações</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-done">—</div><div class="stat-label">Finalizadas</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-bottles" style="color:var(--success)">—</div><div class="stat-label">Garrafas vendidas</div></div>
+    <div class="stat-card"><div class="stat-value" id="s-cups" style="color:var(--gold)">—</div><div class="stat-label">Copos utilizados</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>Buscar</label>
+      <input type="text" class="search-input" id="f-search" placeholder="Nome ou mercado..." oninput="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select id="f-status" onchange="applyFilters()">
+        <option value="">Todos</option>
+        <option value="active">Em andamento</option>
+        <option value="done">Finalizadas</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Cidade</label>
+      <select id="f-city" onchange="applyFilters()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Data</label>
+      <select id="f-date" onchange="applyFilters()">
+        <option value="">Qualquer data</option>
+        <option value="today">Hoje</option>
+        <option value="week">Esta semana</option>
+        <option value="month">Este mês</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Ordenar</label>
+      <select id="f-sort" onchange="applyFilters()">
+        <option value="newest">Mais recentes</option>
+        <option value="oldest">Mais antigas</option>
+        <option value="bottles">Mais garrafas</option>
+        <option value="cups">Mais copos</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="dash-content" id="dash-list"></div>
+
+  <div class="export-row">
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()" style="width:auto">⬇ Exportar dados CSV</button>
+  </div>
+
+</div>
+
+<script>
+// ── CONFIG ──
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDiPCjrd-Soya5yZjzd9a4paoK5ZX8Vdi0",
+  authDomain: "maturi-trade-mkt.firebaseapp.com",
+  projectId: "maturi-trade-mkt",
+  storageBucket: "maturi-trade-mkt.firebasestorage.app",
+  messagingSenderId: "339064060918",
+  appId: "1:339064060918:web:623cfc3f956032ce5165d7"
+};
+const DASH_PASSWORD = 'maturi2025';
+
+// ── STATE ──
+let db = null;
+let allSessions = [];
+let lightboxImages = [];
+let lightboxIndex = 0;
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  const saved = sessionStorage.getItem('maturi_auth');
+  if (saved === 'ok') showDash();
+});
+
+// ── LOGIN ──
+function doLogin() {
+  const pwd = document.getElementById('pwd-input').value;
+  if (pwd === DASH_PASSWORD) {
+    sessionStorage.setItem('maturi_auth', 'ok');
+    document.getElementById('err-msg').style.display = 'none';
+    showDash();
+  } else {
+    document.getElementById('err-msg').style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('maturi_auth');
+  document.getElementById('dash-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('pwd-input').value = '';
+}
+
+function showDash() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dash-screen').style.display = 'flex';
+  loadSessions();
+}
+
+// ── LOAD DATA ──
+async function loadSessions() {
+  showLoading(true);
+  try {
+    const snap = await db.collection('sessions').orderBy('startedAt','desc').limit(200).get();
+    allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    populateCityFilter();
+    applyFilters();
+    updateStats(allSessions);
+  } catch(e) {
+    console.error(e);
+    showToast('Erro ao carregar dados','error');
+  }
+  showLoading(false);
+}
+
+function populateCityFilter() {
+  const cities = [...new Set(allSessions.map(s => s.city).filter(Boolean))].sort();
+  const sel = document.getElementById('f-city');
+  sel.innerHTML = '<option value="">Todas</option>';
+  cities.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+
+function updateStats(sessions) {
+  document.getElementById('s-total').textContent = sessions.length;
+  document.getElementById('s-done').textContent = sessions.filter(s=>s.status==='done').length;
+  document.getElementById('s-bottles').textContent = sessions.reduce((a,s)=>a+(s.bottles||0),0);
+  document.getElementById('s-cups').textContent = sessions.reduce((a,s)=>a+(s.cupsUsed||0),0);
+}
+
+// ── FILTERS ──
+function applyFilters() {
+  const search = document.getElementById('f-search').value.toLowerCase();
+  const status = document.getElementById('f-status').value;
+  const city = document.getElementById('f-city').value;
+  const date = document.getElementById('f-date').value;
+  const sort = document.getElementById('f-sort').value;
+
+  let filtered = allSessions.filter(s => {
+    if (search && !`${s.name||''} ${s.market||''}`.toLowerCase().includes(search)) return false;
+    if (status && s.status !== status) return false;
+    if (city && s.city !== city) return false;
+    if (date) {
+      const ts = s.startedAt?.seconds * 1000;
+      if (!ts) return false;
+      const d = new Date(ts);
+      const now = new Date();
+      if (date === 'today') { if (d.toDateString() !== now.toDateString()) return false; }
+      if (date === 'week') { const w = new Date(now); w.setDate(now.getDate()-7); if (d < w) return false; }
+      if (date === 'month') { if (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear()) return false; }
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    if (sort === 'newest') return (b.startedAt?.seconds||0) - (a.startedAt?.seconds||0);
+    if (sort === 'oldest') return (a.startedAt?.seconds||0) - (b.startedAt?.seconds||0);
+    if (sort === 'bottles') return (b.bottles||0) - (a.bottles||0);
+    if (sort === 'cups') return (b.cupsUsed||0) - (a.cupsUsed||0);
+    return 0;
+  });
+
+  updateStats(filtered);
+  renderList(filtered);
+}
+
+// ── RENDER ──
+function renderList(sessions) {
+  const el = document.getElementById('dash-list');
+  if (!sessions.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>Nenhuma ação encontrada com esses filtros.</p></div>';
+    return;
+  }
+  el.innerHTML = sessions.map(s => buildCard(s)).join('');
+}
+
+function buildCard(s) {
+  const ts = s.startedAt ? new Date(s.startedAt.seconds*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+  const badge = s.status === 'active'
+    ? '<span class="badge badge-active">● Em andamento</span>'
+    : '<span class="badge badge-done">✓ Finalizada</span>';
+  const cupsUsed = s.cupsUsed || (s.cupsStart && s.cupsEnd != null ? s.cupsStart - s.cupsEnd : 0);
+
+  return `
+  <div class="session-card" id="card-${s.id}">
+    <div class="session-card-header" onclick="toggleCard('${s.id}')">
+      <div>
+        <div class="session-name">${s.name||'—'}</div>
+        <div class="session-meta">
+          <span class="meta-tag">🏪 ${s.market||'—'}</span>
+          ${s.city ? `<span class="meta-tag">📍 ${s.city}</span>` : ''}
+          <span class="meta-tag">🕐 ${ts}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        ${badge}
+        <span style="font-size:12px;color:var(--text-muted)">▼ ver detalhes</span>
+      </div>
+    </div>
+    <div class="session-body" id="body-${s.id}">
+      <div class="metrics-row">
+        <div class="metric">
+          <div class="metric-value gold">${s.cupsStart||0}</div>
+          <div class="metric-label">Copos iniciais</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value blue">${cupsUsed}</div>
+          <div class="metric-label">Copos usados</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value green">${s.bottles||0}</div>
+          <div class="metric-label">Garrafas vendidas</div>
+        </div>
+      </div>
+      <div class="photos-section" id="photos-${s.id}">
+        <div class="photos-title">Fotos da ação</div>
+        <div style="color:var(--text-muted);font-size:13px">Clique para carregar fotos...</div>
+      </div>
+      ${s.notes ? `<div class="notes-section"><strong>Observações:</strong> ${s.notes}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── TOGGLE CARD ──
+async function toggleCard(id) {
+  const body = document.getElementById('body-'+id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open');
+  if (!isOpen) await loadPhotos(id);
+}
+
+// ── LOAD PHOTOS ──
+async function loadPhotos(sessionId) {
+  const container = document.getElementById('photos-'+sessionId);
+  if (container.dataset.loaded) return;
+  container.dataset.loaded = 'true';
+  container.innerHTML = '<div class="photos-title">Fotos da ação</div><div style="color:var(--text-muted);font-size:13px">Carregando fotos... 🔄</div>';
+
+  try {
+    const snap = await db.collection('sessions').doc(sessionId).collection('photos').get();
+    if (snap.empty) {
+      container.innerHTML = '<div class="photos-title">Fotos da ação</div><div style="color:var(--text-muted);font-size:13px">Nenhuma foto disponível.</div>';
+      return;
+    }
+
+    const groups = { selfie: [], before: [], after: [], during: [] };
+    snap.docs.forEach(d => {
+      const key = d.id;
+      const data = d.data().data;
+      if (!data) return;
+      if (key === 'selfie') groups.selfie.push(data);
+      else if (key === 'before') groups.before.push(data);
+      else if (key === 'after') groups.after.push(data);
+      else if (key.startsWith('during')) groups.during.push(data);
+    });
+
+    const allPhotos = [...groups.selfie, ...groups.before, ...groups.after, ...groups.during];
+    let startIdx = 0;
+
+    let html = '<div class="photos-title">Fotos da ação</div>';
+    const renderGroup = (label, photos) => {
+      if (!photos.length) return '';
+      const idx = startIdx;
+      startIdx += photos.length;
+      return `<div class="photos-group">
+        <div class="photos-group-label">${label}</div>
+        <div class="photos-grid">
+          ${photos.map((p,i) => `<div class="photo-thumb" onclick="openLightbox(${JSON.stringify(allPhotos)},${idx+i})"><img src="${p}" loading="lazy"></div>`).join('')}
+        </div>
+      </div>`;
+    };
+
+    html += renderGroup('🤳 Você + Carrinho', groups.selfie);
+    html += renderGroup('🏪 Área de venda — Antes', groups.before);
+    html += renderGroup('🏪 Área de venda — Depois', groups.after);
+    html += renderGroup('📸 Durante a ação', groups.during);
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = '<div class="photos-title">Fotos da ação</div><div style="color:var(--danger);font-size:13px">Erro ao carregar fotos.</div>';
+  }
+}
+
+// ── LIGHTBOX ──
+function openLightbox(images, index) {
+  lightboxImages = images;
+  lightboxIndex = index;
+  document.getElementById('lightbox-img').src = images[index];
+  document.getElementById('lightbox').classList.add('active');
+  document.getElementById('lightbox-prev').style.display = images.length > 1 ? 'flex' : 'none';
+  document.getElementById('lightbox-next').style.display = images.length > 1 ? 'flex' : 'none';
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('active'); }
+function lightboxNav(dir) {
+  lightboxIndex = (lightboxIndex + dir + lightboxImages.length) % lightboxImages.length;
+  document.getElementById('lightbox-img').src = lightboxImages[lightboxIndex];
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('active')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  if (e.key === 'ArrowRight') lightboxNav(1);
+});
+
+// ── EXPORT CSV ──
+function exportCSV() {
+  const rows = [['Nome','Mercado','Cidade','Status','Início','Copos iniciais','Copos usados','Garrafas vendidas','Observações']];
+  allSessions.forEach(s => {
+    const ts = s.startedAt ? new Date(s.startedAt.seconds*1000).toLocaleString('pt-BR') : '';
+    const used = s.cupsUsed || (s.cupsStart && s.cupsEnd != null ? s.cupsStart - s.cupsEnd : 0);
+    rows.push([s.name||'',s.market||'',s.city||'',s.status==='done'?'Finalizada':'Em andamento',ts,s.cupsStart||0,used,s.bottles||0,s.notes||'']);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `maturi-acoes-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('CSV exportado ✓','success');
+}
+
+// ── UI HELPERS ──
+function showLoading(v) { document.getElementById('loading').classList.toggle('active',v); }
+let toastTimer;
+function showToast(msg,type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show '+(type||'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.className='',3000);
+}
+</script>
+</body>
+</html>
