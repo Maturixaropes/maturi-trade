@@ -922,9 +922,7 @@
 </div><!-- #app -->
 
 <!-- DASHBOARD TOGGLE -->
-<div id="dash-toggle" style="position:fixed;bottom:20px;right:20px;z-index:500;display:none">
-  <button class="btn btn-primary btn-sm" style="width:auto;padding:10px 18px;border-radius:30px;box-shadow:0 4px 16px rgba(201,150,42,0.3)" onclick="window.open('dashboard.html','_blank')">📊 Dashboard</button>
-</div>
+
 
 <script>
 // ──────────────────────────────
@@ -963,7 +961,6 @@ function useDemo() {
   demoMode = true;
   showToast('Modo demonstração: dados não serão salvos na nuvem');
   showScreen('login');
-  document.getElementById('dash-toggle').style.display = 'block';
 }
 
 function initFirebase(cfg) {
@@ -972,8 +969,7 @@ function initFirebase(cfg) {
     db = firebase.firestore();
     showToast('Firebase conectado! ✓', 'success');
     showScreen('login');
-    document.getElementById('dash-toggle').style.display = 'block';
-  } catch(e) {
+    } catch(e) {
     console.error(e);
     showToast('Erro ao conectar. Verifique as credenciais.', 'error');
   }
