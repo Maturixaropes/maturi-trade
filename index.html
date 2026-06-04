@@ -1049,16 +1049,19 @@ function handlePhoto(input, slot) {
 }
 
 function triggerDuringUpload() {
-  // Recria o input a cada clique — fix para bug do iOS/Android que ignora
-  // o onchange na primeira captura com camera
+  // Recria o input a cada clique (fix iOS/Android) com capture para forçar câmera
   const old = document.getElementById('during-input');
   const newInput = document.createElement('input');
   newInput.type = 'file';
   newInput.accept = 'image/*';
-  newInput.multiple = true;
+  newInput.capture = 'environment';  // força câmera traseira, sem opção de arquivo
   newInput.id = 'during-input';
   newInput.style.cssText = 'position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;background:none;';
-  newInput.addEventListener('change', function() { handleDuringPhotos(this); });
+  newInput.addEventListener('change', function() {
+    handleDuringPhotos(this);
+    // Remove o input após uso para não ficar disparando eventos
+    if (this.parentNode) this.parentNode.removeChild(this);
+  });
   old.parentNode.replaceChild(newInput, old);
   newInput.click();
 }
@@ -1773,7 +1776,7 @@ function hideAC(type) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.3</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.4</div>
 
 </body>
 </html>
