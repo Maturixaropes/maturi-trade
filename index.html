@@ -952,6 +952,187 @@ let dashFilter = 'all';
 let allSessions = [];
 let isDashOpen = false;
 
+// ── PERSISTÊNCIA DE SESSÃO ─────────────────────────────────────
+const STORAGE_KEY = 'maturi_session_v1';
+
+function saveSessionLocal() {
+  if (!sessionId) return;
+  const data = {
+    sessionId,
+    screen: document.querySelector('.screen.active') ? document.querySelector('.screen.active').id.replace('screen-','') : 'start',
+    state: {
+      name: state.name,
+      market: state.market,
+      city: state.city,
+      cupsStart: state.cupsStart,
+      cupsEnd: state.cupsEnd,
+      bottles: state.bottles,
+      notes: state.notes,
+      liveBottles: parseInt(document.getElementById('live-bottles-val')?.value || 0)
+    }
+  };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function clearSessionLocal() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+
+function loadSessionLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+// ── MODAL DE RESTAURAÇÃO ──────────────────────────────────────
+let pendingRestoreScreen = null;
+let pendingRestoreState  = null; // guarda estado restaurado para aplicar se confirmar
+
+function showRestoreModal(msg) {
+  document.getElementById('restore-msg').innerHTML = msg;
+  document.getElementById('restore-yes').textContent = 'Sim';
+  document.getElementById('restore-no').textContent  = 'Não';
+  document.getElementById('restore-yes').onclick = handleRestoreYes;
+  document.getElementById('restore-no').onclick  = handleRestoreNo;
+  document.getElementById('restore-modal').style.display = 'flex';
+}
+
+function handleRestoreYes() {
+  document.getElementById('restore-modal').style.display = 'none';
+  if (!pendingRestoreScreen) return;
+
+  // Aplica estado restaurado na tela correta
+  const firstName = state.name.split(' ')[0];
+  ['start','during','end'].forEach(s => {
+    const el = document.getElementById('topbar-name-'+s);
+    if (el) el.textContent = firstName;
+  });
+
+  if (pendingRestoreScreen === 'during' || pendingRestoreScreen === 'end') {
+    const lbVal  = document.getElementById('live-bottles-val');
+    const lbDisp = document.getElementById('live-bottles-display');
+    const saved  = loadSessionLocal();
+    const lb     = saved?.state?.liveBottles || 0;
+    if (lbVal)  lbVal.value      = lb;
+    if (lbDisp) lbDisp.textContent = lb;
+  }
+  if (pendingRestoreScreen === 'end') {
+    const cupsEndDisp = document.getElementById('cups-end-display');
+    const cupsEndVal  = document.getElementById('cups-end-val');
+    const bottlesDisp = document.getElementById('bottles-display');
+    const bottlesVal  = document.getElementById('bottles-val');
+    if (cupsEndDisp) cupsEndDisp.textContent = state.cupsEnd;
+    if (cupsEndVal)  cupsEndVal.value         = state.cupsEnd;
+    if (bottlesDisp) bottlesDisp.textContent  = state.bottles;
+    if (bottlesVal)  bottlesVal.value          = state.bottles;
+  }
+
+  showScreen(pendingRestoreScreen);
+  showToast('Sessão restaurada com sucesso ✅', 'success');
+  pendingRestoreScreen = null;
+}
+
+function handleRestoreNo() {
+  // Confirmação de abandono
+  document.getElementById('restore-msg').innerHTML =
+    '⚠️ <strong>Atenção!</strong><br><br>Se cancelar, todo o trabalho da degustação em andamento será <strong>perdido</strong> e não poderá ser recuperado.<br><br>Tem certeza que deseja cancelar?';
+  document.getElementById('restore-yes').textContent = 'Sim, cancelar';
+  document.getElementById('restore-yes').style.background = '#c0392b';
+  document.getElementById('restore-no').textContent  = 'Não, continuar';
+  document.getElementById('restore-yes').onclick = confirmAbandon;
+  document.getElementById('restore-no').onclick  = handleRestoreYes; // volta a continuar
+}
+
+function confirmAbandon() {
+  document.getElementById('restore-modal').style.display = 'none';
+  document.getElementById('restore-yes').style.background = 'var(--gold)'; // reset cor
+  // Cancela a sessão no Firestore
+  if (sessionId && db) {
+    db.collection('sessions').doc(sessionId).update({ status: 'cancelled' }).catch(() => {});
+  }
+  clearSessionLocal();
+  sessionId = null;
+  state = { name:'',market:'',city:'',cupsStart:100,cupsEnd:0,bottles:0,notes:'',photos:{selfie:null,before:null,after:null,during:[]} };
+  pendingRestoreScreen = null;
+  showScreen('config'); // vai para tela de login
+  showToast('Sessão cancelada', 'error');
+}
+
+async function tryRestoreSession() {
+  const saved = loadSessionLocal();
+  if (!saved || !saved.sessionId || !db) return false;
+
+  try {
+    const doc = await db.collection('sessions').doc(saved.sessionId).get();
+    if (!doc.exists) { clearSessionLocal(); return false; }
+    const d = doc.data();
+
+    // Se já finalizada, limpa e não restaura
+    if (d.status === 'done') { clearSessionLocal(); return false; }
+
+    // Restaura estado
+    sessionId = saved.sessionId;
+    state.name    = d.name    || saved.state.name    || '';
+    state.market  = d.market  || saved.state.market  || '';
+    state.city    = d.city    || saved.state.city    || '';
+    state.cupsStart = d.cupsStart ?? saved.state.cupsStart ?? 100;
+    state.cupsEnd   = d.cupsEnd   ?? saved.state.cupsEnd   ?? 0;
+    state.bottles   = d.bottles   ?? saved.state.bottles   ?? 0;
+    state.notes     = d.notes     ?? saved.state.notes     ?? '';
+    const liveBottles = typeof d.liveBottles === 'number' ? d.liveBottles : (saved.state.liveBottles || 0);
+
+    // Preenche topbars
+    const firstName = state.name.split(' ')[0];
+    ['start','during','end'].forEach(s => {
+      const el = document.getElementById('topbar-name-'+s);
+      if (el) el.textContent = firstName;
+    });
+
+    // Restaura tela correta
+    const screen = saved.screen;
+    if (screen === 'during' || screen === 'end') {
+      // Atualiza contador de garrafas ao vivo
+      const lbVal = document.getElementById('live-bottles-val');
+      const lbDisp = document.getElementById('live-bottles-display');
+      if (lbVal) lbVal.value = liveBottles;
+      if (lbDisp) lbDisp.textContent = liveBottles;
+
+      // Restaura copos se na tela de encerramento
+      if (screen === 'end') {
+        const cupsEndDisp = document.getElementById('cups-end-display');
+        const cupsEndVal  = document.getElementById('cups-end-val');
+        const bottlesDisp = document.getElementById('bottles-display');
+        const bottlesVal  = document.getElementById('bottles-val');
+        if (cupsEndDisp) cupsEndDisp.textContent = state.cupsEnd;
+        if (cupsEndVal)  cupsEndVal.value  = state.cupsEnd;
+        if (bottlesDisp) bottlesDisp.textContent = state.bottles;
+        if (bottlesVal)  bottlesVal.value  = state.bottles;
+      }
+
+      // Mostra modal de confirmação em vez de restaurar direto
+      pendingRestoreScreen = screen;
+      showRestoreModal(
+        `Você tem uma degustação em andamento em <strong>${state.market} · ${state.city}</strong>.<br><br>Deseja continuar de onde parou?`
+      );
+      return true;
+    }
+
+    if (screen === 'start') {
+      pendingRestoreScreen = screen;
+      showRestoreModal(
+        `Você tem uma ação iniciada em <strong>${state.market} · ${state.city}</strong>.<br><br>Deseja continuar de onde parou?`
+      );
+      return true;
+    }
+
+    return false;
+  } catch(e) {
+    console.warn('Erro ao restaurar sessão:', e);
+    return false;
+  }
+}
+
 // ──────────────────────────────
 //  FIREBASE CONFIG
 // ──────────────────────────────
@@ -980,6 +1161,8 @@ function initFirebase(cfg) {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     db = firebase.firestore();
     showToast('Firebase conectado! ✓', 'success');
+    // Tenta restaurar sessão interrompida
+    tryRestoreSession()');
     showScreen('login');
     } catch(e) {
     console.error(e);
@@ -1016,6 +1199,7 @@ function doLogin() {
   if (!unidadeValida) { showToast('Loja não encontrada. Selecione da lista.', 'error'); document.getElementById('login-unit').focus(); return; }
   state.name = name; state.market = redeValida; state.city = unidadeValida;
   sessionId = 'sess_' + Date.now();
+  saveSessionLocal(); // persiste identificador da sessão
   document.getElementById('topbar-name-start').textContent = name.split(' ')[0];
   document.getElementById('topbar-name-during').textContent = name.split(' ')[0];
   document.getElementById('topbar-name-end').textContent = name.split(' ')[0];
@@ -1147,6 +1331,7 @@ async function submitStart() {
     setBar('start', 100);
     hideLoading();
     showScreen('during');
+    saveSessionLocal(); // persiste que está na tela during
   } catch(e) {
     console.error(e);
     hideLoading();
@@ -1179,6 +1364,7 @@ async function saveLiveBottles(val) {
       liveBottles: val,
       liveBottlesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     })
+    saveSessionLocal() // persiste estado local também
   } catch(e) {
     console.warn('Erro ao salvar garrafas ao vivo:', e)
   }
@@ -1310,6 +1496,7 @@ async function goToEnd() {
     }
   }
   showScreen('end');
+  saveSessionLocal(); // persiste que está na tela de encerramento
 }
 
 // ──────────────────────────────
@@ -1350,6 +1537,7 @@ async function submitEnd() {
     hideLoading();
     showSummary();
     showScreen('done');
+    clearSessionLocal(); // sessão concluída — limpa persistência
   } catch(e) {
     console.error(e);
     hideLoading();
@@ -1371,6 +1559,7 @@ function showSummary() {
 }
 
 function restart() {
+  clearSessionLocal(); // garante que não restaura sessão antiga
   state = { name:'',market:'',city:'',cupsStart:100,cupsEnd:0,bottles:0,notes:'',photos:{selfie:null,before:null,after:null,during:[]} };
   sessionId = null;
   document.getElementById('login-name').value = '';
@@ -1778,8 +1967,37 @@ function hideAC(type) {
     </div>
   </div>
 
+  <!-- MODAL RESTAURAR SESSÃO -->
+  <div id="restore-modal" style="
+    position:fixed;inset:0;z-index:3000;
+    background:rgba(0,0,0,0.88);
+    display:none;align-items:center;justify-content:center;
+    padding:24px;
+  ">
+    <div style="
+      background:#1a2e25;border-radius:20px;
+      padding:28px 24px;width:100%;max-width:400px;
+      border:1px solid rgba(201,150,42,0.4);
+      text-align:center;
+    ">
+      <div style="font-size:40px;margin-bottom:12px">⏸️</div>
+      <h2 style="font-family:'Moche',serif;font-size:20px;font-weight:800;color:var(--gold);margin:0 0 10px">Sessão encontrada</h2>
+      <p id="restore-msg" style="color:var(--cream);font-size:14px;line-height:1.6;margin:0 0 24px"></p>
+      <div style="display:flex;gap:12px;">
+        <button id="restore-no" onclick="handleRestoreNo()" style="
+          flex:1;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);
+          background:transparent;color:var(--cream);font-size:15px;font-weight:600;cursor:pointer;
+        ">Não</button>
+        <button id="restore-yes" onclick="handleRestoreYes()" style="
+          flex:1;padding:14px;border-radius:12px;border:none;
+          background:var(--gold);color:#1a2e25;font-size:15px;font-weight:800;cursor:pointer;
+        ">Sim</button>
+      </div>
+    </div>
+  </div>
+
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.5</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.7</div>
 
 </body>
 </html>
