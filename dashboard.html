@@ -1151,7 +1151,7 @@ async function callClaudeAPI(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }]
     })
@@ -1234,7 +1234,7 @@ async function askAi() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         messages: chatHistory
       })
@@ -1316,6 +1316,6 @@ function addTypingBubble() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.6</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.7</div>
 </body>
 </html>
