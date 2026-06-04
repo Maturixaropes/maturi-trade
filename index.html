@@ -683,8 +683,14 @@
 
       <div class="card">
         <div class="card-label">Seu nome</div>
-        <div class="input-wrap">
-          <input type="text" id="login-name" placeholder="Digite seu nome completo" autocomplete="name" autocapitalize="words">
+        <div class="input-wrap" style="position:relative">
+          <input type="text" id="login-name" placeholder="Digite seu nome..." autocomplete="off" autocapitalize="words"
+            oninput="filterNameSuggestions(this.value)" onfocus="filterNameSuggestions(this.value)" onblur="setTimeout(hideNameSuggestions,200)">
+          <div id="name-suggestions" style="
+            display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
+            background:#1a2e25;border:1px solid rgba(201,150,42,0.3);
+            border-radius:0 0 12px 12px;max-height:200px;overflow-y:auto;
+          "></div>
         </div>
       </div>
 
@@ -1157,6 +1163,7 @@ function initFirebase(cfg) {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     db = firebase.firestore();
     showToast('Firebase conectado! ✓', 'success');
+    loadDegustadoras(); // carrega lista de nomes para autocomplete
     // Tenta restaurar sessão interrompida
     tryRestoreSession();
     showScreen('login');
@@ -1176,6 +1183,46 @@ function showScreen(name) {
   // Mostrar botão de ranking só na tela "durante"
   const fab = document.getElementById('ranking-fab');
   if (fab) fab.style.display = (name === 'during') ? 'flex' : 'none';
+}
+
+// ── AUTOCOMPLETE DE NOME ─────────────────────────────────────
+let degustadorasList = []
+
+async function loadDegustadoras() {
+  if (!db) return
+  try {
+    const snap = await db.collection('degustadoras').orderBy('name').get()
+    degustadorasList = snap.docs.map(d => d.data().name).filter(Boolean)
+  } catch(e) {
+    console.warn('Erro ao carregar degustadoras:', e)
+  }
+}
+
+function filterNameSuggestions(val) {
+  const box = document.getElementById('name-suggestions')
+  if (!val || val.length < 1) { box.style.display = 'none'; return }
+  const filtered = degustadorasList.filter(n =>
+    n.toLowerCase().includes(val.toLowerCase())
+  )
+  if (!filtered.length) { box.style.display = 'none'; return }
+  box.innerHTML = filtered.map(n => `
+    <div onclick="selectName('${n.replace(/'/g, "\'")}')" style="
+      padding:12px 16px;cursor:pointer;font-size:14px;color:var(--cream);
+      border-bottom:1px solid rgba(255,255,255,0.06);
+    " onmouseenter="this.style.background='rgba(201,150,42,0.12)'"
+       onmouseleave="this.style.background=''">${n}</div>
+  `).join('')
+  box.style.display = 'block'
+}
+
+function selectName(name) {
+  document.getElementById('login-name').value = name
+  hideNameSuggestions()
+}
+
+function hideNameSuggestions() {
+  const box = document.getElementById('name-suggestions')
+  if (box) box.style.display = 'none'
 }
 
 // ──────────────────────────────
@@ -2256,7 +2303,7 @@ async function firestorePhotoSet(sessionId, docName, data) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.1</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.2</div>
 
 </body>
 </html>
