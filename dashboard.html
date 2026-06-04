@@ -318,10 +318,16 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
         <div class="section-title" style="margin:0">👥 Cadastro de Degustadoras</div>
         <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Nomes cadastrados aparecem como autocomplete no app</p>
       </div>
-      <button onclick="openAddTeam()" style="
-        background:var(--gold);border:none;color:var(--green);
-        font-weight:800;font-size:13px;border-radius:10px;
-        padding:10px 20px;cursor:pointer;">+ Adicionar</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="importDefaultTeam()" id="btn-import" style="
+          background:rgba(201,150,42,0.15);border:1px solid rgba(201,150,42,0.4);
+          color:var(--gold);font-weight:700;font-size:13px;border-radius:10px;
+          padding:10px 16px;cursor:pointer;">📥 Importar lista</button>
+        <button onclick="openAddTeam()" style="
+          background:var(--gold);border:none;color:var(--green);
+          font-weight:800;font-size:13px;border-radius:10px;
+          padding:10px 20px;cursor:pointer;">+ Adicionar</button>
+      </div>
     </div>
 
     <!-- Formulário (oculto por padrão) -->
@@ -1335,6 +1341,32 @@ function addTypingBubble() {
 
 // ── EQUIPE ────────────────────────────────────────────────────────
 
+async function importDefaultTeam() {
+  const btn = document.getElementById('btn-import');
+  const nomes = ["Aline Garcez","Aline Sonego","Amanda","Andresa Lima Alves","Andressa Rodrigues dos Santos","Andressa de Souza Olímpio","Ariane","Cristina Ferreira","Danusa Gaio","David Alves","Dayana Albuquerque","Denaura Valdina dos Santos","Dirlei Caldart","Dorilda Aparecida de Oliveira","Edineia Pereira da Silveira","Eliane Cunha","Eliete","Elisangela Cunha Piccoli","Emilly Santana Rocha","Fausia Joaquim Langa","Flavia Macena","Florisbela Zatycko","Hellen Bezerra","Ingridy","Iraci da Aparecida Porfirio","Irene da Conceição Ribeiro dos Santos","Jhenifer Silva","Jhenyfer","Josefina","Karen Bernardinelli Luz","Katia Oliveira","Leticia","Lucca Bulara Sampaio","Luciana Bonifácio de Farias da Silva","Luciane Gid","Luiza","Lygia Dias Bomtempo","Magda","Maria Isabel Rodrigues da Silva","Micaela Aguero Santa Helena","Natalino Cortung Junior","Patricia Felde","Ramycieli","Rejandra Dias do Nascimento","Serli Ap Porfirio","Stefphany Lays Soppa","Tatiane","Yasmim Zanmaria"];
+  if (!confirm(`Importar ${nomes.length} degustadoras para o cadastro?`)) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Importando...';
+  let added = 0, skipped = 0;
+  try {
+    for (const name of nomes) {
+      const snap = await db.collection('degustadoras').where('name','==',name).get();
+      if (snap.empty) {
+        await db.collection('degustadoras').add({ name, phone:'', notes:'', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        added++;
+      } else {
+        skipped++;
+      }
+    }
+    showToast(`✅ ${added} adicionadas, ${skipped} já existiam`, 'success');
+    loadTeam();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '📥 Importar lista';
+}
+
 async function loadTeam() {
   const listEl = document.getElementById('team-list');
   if (!db) return;
@@ -1458,6 +1490,6 @@ async function deleteTeamMember(id, name) {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.9</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.0</div>
 </body>
 </html>
