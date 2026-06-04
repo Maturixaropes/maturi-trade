@@ -859,17 +859,6 @@
       </div>
 
       <!-- Garrafas vendidas -->
-      <div class="card">
-        <div class="card-label">🍷 Garrafas Vendidas</div>
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Estimativa de garrafas vendidas durante a ação</p>
-        <div class="big-num-wrap">
-          <button class="big-num-btn" onclick="changeNum('bottles',-1)">−</button>
-          <div class="big-num-display" id="bottles-display">0</div>
-          <button class="big-num-btn" onclick="changeNum('bottles',1)">+</button>
-        </div>
-        <input type="hidden" id="bottles-val" value="0">
-      </div>
-
       <!-- Observações -->
       <div class="card">
         <div class="card-label">💬 Observações (opcional)</div>
@@ -1020,8 +1009,7 @@ function handleRestoreYes() {
   if (pendingRestoreScreen === 'end') {
     const cupsEndDisp = document.getElementById('cups-end-display');
     const cupsEndVal  = document.getElementById('cups-end-val');
-    const bottlesDisp = document.getElementById('bottles-display');
-    const bottlesVal  = document.getElementById('bottles-val');
+
     if (cupsEndDisp) cupsEndDisp.textContent = state.cupsEnd;
     if (cupsEndVal)  cupsEndVal.value         = state.cupsEnd;
     if (bottlesDisp) bottlesDisp.textContent  = state.bottles;
@@ -1112,12 +1100,10 @@ async function tryRestoreSession() {
       if (screen === 'end') {
         const cupsEndDisp = document.getElementById('cups-end-display');
         const cupsEndVal  = document.getElementById('cups-end-val');
-        const bottlesDisp = document.getElementById('bottles-display');
-        const bottlesVal  = document.getElementById('bottles-val');
+
         if (cupsEndDisp) cupsEndDisp.textContent = state.cupsEnd;
         if (cupsEndVal)  cupsEndVal.value  = state.cupsEnd;
-        if (bottlesDisp) bottlesDisp.textContent = state.bottles;
-        if (bottlesVal)  bottlesVal.value  = state.bottles;
+
       }
 
       // Mostra modal de confirmação em vez de restaurar direto
@@ -1673,9 +1659,12 @@ async function submitEnd() {
     setBar('end', 60);
     state.notes = document.getElementById('end-notes').value.trim();
     await firestorePhotoSet(sessionId, 'after', afterData)
+    // Usa liveBottles como total de garrafas vendidas (contado durante a ação)
+    const finalBottles = parseInt(document.getElementById('live-bottles-val')?.value || 0)
     await firestoreUpdate(sessionId, {
       cupsEnd: state.cupsEnd,
-      bottles: state.bottles,
+      bottles: finalBottles,
+      liveBottles: finalBottles,
       notes: state.notes,
       finishedAt: firebase.firestore.FieldValue.serverTimestamp(),
       status: 'done',
@@ -1718,8 +1707,7 @@ function restart() {
   document.getElementById('cups-start-display').textContent = 100;
   document.getElementById('cups-end-val').value = 0;
   document.getElementById('cups-end-display').textContent = 0;
-  document.getElementById('bottles-val').value = 0;
-  document.getElementById('bottles-display').textContent = 0;
+
   document.getElementById('end-notes').value = '';
   ['slot-selfie','slot-before','slot-after'].forEach(id => {
     const el = document.getElementById(id);
@@ -2268,7 +2256,7 @@ async function firestorePhotoSet(sessionId, docName, data) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.0</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.1</div>
 
 </body>
 </html>
