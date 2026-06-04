@@ -1055,7 +1055,7 @@ function confirmAbandon() {
   sessionId = null;
   state = { name:'',market:'',city:'',cupsStart:100,cupsEnd:0,bottles:0,notes:'',photos:{selfie:null,before:null,after:null,during:[]} };
   pendingRestoreScreen = null;
-  showScreen('config'); // vai para tela de login
+  showScreen('login'); // vai para tela de login
   showToast('Sessão cancelada', 'error');
 }
 
@@ -1162,7 +1162,7 @@ function initFirebase(cfg) {
     db = firebase.firestore();
     showToast('Firebase conectado! ✓', 'success');
     // Tenta restaurar sessão interrompida
-    tryRestoreSession()');
+    tryRestoreSession();
     showScreen('login');
     } catch(e) {
     console.error(e);
@@ -1997,7 +1997,7 @@ function hideAC(type) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.7</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.8</div>
 
 </body>
 </html>
