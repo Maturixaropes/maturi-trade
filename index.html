@@ -1034,6 +1034,12 @@ function handleRestoreYes() {
   if (pendingRestoreScreen === 'during' || pendingRestoreScreen === 'end') {
     restoreDuringPhotos();
   }
+  // Retoma timer de lembrete se voltou para a tela durante
+  if (pendingRestoreScreen === 'during') {
+    requestNotificationPermission().then(granted => {
+      if (granted) startReminderTimer()
+    })
+  }
   pendingRestoreScreen = null;
 }
 
@@ -1280,8 +1286,7 @@ function handleDuringPhotos(input) {
 async function uploadDuringPhotoNow(file, idx) {
   try {
     const data = await uploadFile(file, '');
-    await db.collection('sessions').doc(sessionId)
-      .collection('photos').doc('during_' + idx).set({ data });
+    await firestorePhotoSet(sessionId, 'during_' + idx, data)
     // Marca miniatura como salva (borda verde discreta)
     const grid = document.getElementById('during-grid');
     const thumbs = grid.querySelectorAll('.photo-thumb:not(.photo-thumb-add)');
@@ -1353,13 +1358,16 @@ async function submitStart() {
       startedAt: firebase.firestore.FieldValue.serverTimestamp(),
       status: 'active'
     };
-    await db.collection('sessions').doc(sessionId).set(data);
-    await db.collection('sessions').doc(sessionId).collection('photos').doc('selfie').set({ data: selfieData });
-    await db.collection('sessions').doc(sessionId).collection('photos').doc('before').set({ data: beforeData });
+    await firestoreSet(sessionId, data)
+    await firestorePhotoSet(sessionId, 'selfie', selfieData)
+    await firestorePhotoSet(sessionId, 'before', beforeData)
     setBar('start', 100);
     hideLoading();
     showScreen('during');
     saveSessionLocal(); // persiste que está na tela during
+    requestNotificationPermission().then(granted => {
+      if (granted) startReminderTimer()
+    })
   } catch(e) {
     console.error(e);
     hideLoading();
@@ -1371,6 +1379,62 @@ async function submitStart() {
 // ──────────────────────────────
 //  GO TO END
 // ──────────────────────────────
+// ── NOTIFICAÇÕES DE LEMBRETE ──────────────────────────────────
+let reminderInterval = null
+let lastSaleTime = null
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) return false
+  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'denied') return false
+  const result = await Notification.requestPermission()
+  return result === 'granted'
+}
+
+function startReminderTimer() {
+  lastSaleTime = Date.now()
+  stopReminderTimer()
+  reminderInterval = setInterval(checkSaleReminder, 60000) // checa a cada 1 min
+}
+
+function stopReminderTimer() {
+  clearInterval(reminderInterval)
+  reminderInterval = null
+}
+
+function resetReminderTimer() {
+  // Chamado sempre que registrar uma venda
+  lastSaleTime = Date.now()
+}
+
+function checkSaleReminder() {
+  if (!lastSaleTime) return
+  const elapsed = Date.now() - lastSaleTime
+  const oneHour = 60 * 60 * 1000
+  if (elapsed >= oneHour) {
+    sendReminderNotification()
+    lastSaleTime = Date.now() // reseta para não ficar disparando
+  }
+}
+
+function sendReminderNotification() {
+  if (!('Notification' in window)) return
+  if (Notification.permission !== 'granted') return
+  const name = state.name ? state.name.split(' ')[0] : 'Degustadora'
+  try {
+    const notif = new Notification('⏰ Maturí — Lembrete de venda', {
+      body: `${name}, já faz 1 hora sem registrar uma venda. Não esqueça de atualizar!`,
+      icon: 'https://maturixaropes.github.io/maturi-trade/icon-192.png',
+      badge: 'https://maturixaropes.github.io/maturi-trade/icon-192.png',
+      tag: 'maturi-reminder', // substitui notif anterior se ainda estiver visível
+      renotify: true
+    })
+    notif.onclick = () => { window.focus(); notif.close() }
+  } catch(e) {
+    console.warn('Erro ao enviar notificação:', e)
+  }
+}
+
 // ── CONTADOR DE GARRAFAS AO VIVO ──────────────────────────────
 let liveBottlesSaveTimer = null
 
@@ -1383,12 +1447,13 @@ function changeLiveBottles(delta) {
   dispEl.textContent = val
   clearTimeout(liveBottlesSaveTimer)
   liveBottlesSaveTimer = setTimeout(() => saveLiveBottles(val), 600)
+  if (delta > 0) resetReminderTimer() // venda registrada — reseta o contador de 1h
 }
 
 async function saveLiveBottles(val) {
   if (!sessionId || !db) return
   try {
-    await db.collection('sessions').doc(sessionId).update({
+    await firestoreUpdate(sessionId, {
       liveBottles: val,
       liveBottlesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     })
@@ -1579,6 +1644,7 @@ async function goToEnd() {
   }
   showScreen('end');
   saveSessionLocal(); // persiste que está na tela de encerramento
+  stopReminderTimer() // encerramento iniciado — para o lembrete
 }
 
 // ──────────────────────────────
@@ -1606,15 +1672,15 @@ async function submitEnd() {
     const afterData = await uploadFile(state.photos.after, '');
     setBar('end', 60);
     state.notes = document.getElementById('end-notes').value.trim();
-    await db.collection('sessions').doc(sessionId).collection('photos').doc('after').set({ data: afterData });
-    await db.collection('sessions').doc(sessionId).update({
+    await firestorePhotoSet(sessionId, 'after', afterData)
+    await firestoreUpdate(sessionId, {
       cupsEnd: state.cupsEnd,
       bottles: state.bottles,
       notes: state.notes,
       finishedAt: firebase.firestore.FieldValue.serverTimestamp(),
       status: 'done',
       cupsUsed: state.cupsStart - state.cupsEnd
-    });
+    })
     setBar('end', 100);
     hideLoading();
     showSummary();
@@ -1641,6 +1707,7 @@ function showSummary() {
 }
 
 function restart() {
+  stopReminderTimer()
   clearSessionLocal(); // garante que não restaura sessão antiga
   state = { name:'',market:'',city:'',cupsStart:100,cupsEnd:0,bottles:0,notes:'',photos:{selfie:null,before:null,after:null,during:[]} };
   sessionId = null;
@@ -2013,6 +2080,128 @@ function hideAC(type) {
 
 
 
+
+
+// ── MODO OFFLINE ───────────────────────────────────────────────
+// IndexedDB para guardar uploads pendentes quando sem internet
+const IDB_NAME = 'maturi_offline'
+const IDB_STORE = 'pending_uploads'
+let idb = null
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    if (idb) { resolve(idb); return }
+    const req = indexedDB.open(IDB_NAME, 1)
+    req.onupgradeneeded = e => {
+      const db = e.target.result
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE, { keyPath: 'id', autoIncrement: true })
+      }
+    }
+    req.onsuccess = e => { idb = e.target.result; resolve(idb) }
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+async function queueOfflineUpload(payload) {
+  try {
+    const db = await openIDB()
+    const tx = db.transaction(IDB_STORE, 'readwrite')
+    tx.objectStore(IDB_STORE).add(payload)
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej })
+    console.log('📦 Salvo offline:', payload.type)
+  } catch(e) {
+    console.warn('Erro ao salvar offline:', e)
+  }
+}
+
+async function getPendingUploads() {
+  try {
+    const db = await openIDB()
+    const tx = db.transaction(IDB_STORE, 'readonly')
+    const store = tx.objectStore(IDB_STORE)
+    return new Promise((resolve, reject) => {
+      const req = store.getAll()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror   = () => reject(req.error)
+    })
+  } catch(e) { return [] }
+}
+
+async function removeOfflineItem(id) {
+  try {
+    const db = await openIDB()
+    const tx = db.transaction(IDB_STORE, 'readwrite')
+    tx.objectStore(IDB_STORE).delete(id)
+  } catch(e) {}
+}
+
+async function syncOfflineQueue() {
+  if (!db || !navigator.onLine) return
+  const items = await getPendingUploads()
+  if (items.length === 0) return
+  console.log(`🔄 Sincronizando ${items.length} item(s) offline...`)
+  let synced = 0
+  for (const item of items) {
+    try {
+      if (item.type === 'session_set') {
+        await db.collection('sessions').doc(item.sessionId).set(item.data)
+      } else if (item.type === 'session_update') {
+        await db.collection('sessions').doc(item.sessionId).update(item.data)
+      } else if (item.type === 'photo') {
+        await db.collection('sessions').doc(item.sessionId)
+          .collection('photos').doc(item.docName).set({ data: item.data })
+      }
+      await removeOfflineItem(item.id)
+      synced++
+    } catch(e) {
+      console.warn('Falha ao sincronizar item:', item.type, e)
+    }
+  }
+  if (synced > 0) showToast(`☁️ ${synced} item(s) sincronizado(s)`, 'success')
+}
+
+// Monitora conexão e sincroniza ao voltar online
+window.addEventListener('online', () => {
+  showToast('🌐 Conexão restaurada! Sincronizando...', 'success')
+  setTimeout(syncOfflineQueue, 2000)
+})
+window.addEventListener('offline', () => {
+  showToast('📵 Sem internet — dados salvos localmente', 'error')
+})
+
+// Wrapper robusto para operações Firestore com fallback offline
+async function firestoreSet(sessionId, data) {
+  if (navigator.onLine && db) {
+    try {
+      await db.collection('sessions').doc(sessionId).set(data)
+      return
+    } catch(e) { console.warn('Firestore set falhou, salvando offline') }
+  }
+  await queueOfflineUpload({ type: 'session_set', sessionId, data })
+}
+
+async function firestoreUpdate(sessionId, data) {
+  if (navigator.onLine && db) {
+    try {
+      await db.collection('sessions').doc(sessionId).update(data)
+      return
+    } catch(e) { console.warn('Firestore update falhou, salvando offline') }
+  }
+  await queueOfflineUpload({ type: 'session_update', sessionId, data })
+}
+
+async function firestorePhotoSet(sessionId, docName, data) {
+  if (navigator.onLine && db) {
+    try {
+      await db.collection('sessions').doc(sessionId)
+        .collection('photos').doc(docName).set({ data })
+      return
+    } catch(e) { console.warn('Firestore photo falhou, salvando offline') }
+  }
+  await queueOfflineUpload({ type: 'photo', sessionId, docName, data })
+}
+
 </script>
 
   <!-- ── RANKING FLUTUANTE ── -->
@@ -2079,7 +2268,7 @@ function hideAC(type) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.9</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.0</div>
 
 </body>
 </html>
