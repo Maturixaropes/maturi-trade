@@ -227,6 +227,7 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
       <button class="main-tab" onclick="switchMainTab('sessions')">📋 Degustações</button>
       <button class="main-tab" onclick="switchMainTab('photos')">📸 Fotos</button>
       <button class="main-tab" onclick="switchMainTab('ai')">🤖 Análise IA</button>
+      <button class="main-tab" onclick="switchMainTab('team')">👥 Equipe</button>
     </div>
   </div>
 
@@ -308,6 +309,50 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
     <div class="section-title">📸 Explorador de Fotos</div>
     <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Organizado por Ano → Mês → Data → Degustadora</p>
     <div id="photo-tree"></div>
+  </div>
+
+  <!-- ABA: EQUIPE -->
+  <div id="tab-team" class="main-tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="section-title" style="margin:0">👥 Cadastro de Degustadoras</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Nomes cadastrados aparecem como autocomplete no app</p>
+      </div>
+      <button onclick="openAddTeam()" style="
+        background:var(--gold);border:none;color:var(--green);
+        font-weight:800;font-size:13px;border-radius:10px;
+        padding:10px 20px;cursor:pointer;">+ Adicionar</button>
+    </div>
+
+    <!-- Formulário (oculto por padrão) -->
+    <div id="team-form" style="
+      display:none;
+      background:var(--card-bg);border:1px solid var(--border);
+      border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+      <div class="section-title" style="font-size:14px;margin-bottom:14px" id="team-form-title">Nova Degustadora</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input type="hidden" id="team-edit-id">
+        <input type="text" id="team-name" placeholder="Nome completo *"
+          style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+        <input type="text" id="team-phone" placeholder="Telefone (opcional)"
+          style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+        <input type="text" id="team-notes" placeholder="Observações (opcional)"
+          style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button onclick="closeTeamForm()" style="
+            flex:1;padding:12px;border-radius:10px;
+            border:1px solid var(--border);background:transparent;
+            color:var(--text-muted);font-size:14px;cursor:pointer;">Cancelar</button>
+          <button onclick="saveTeamMember()" style="
+            flex:2;padding:12px;border-radius:10px;border:none;
+            background:var(--gold);color:var(--green);
+            font-size:14px;font-weight:800;cursor:pointer;">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div id="team-list"><div class="empty"><div class="empty-icon">👤</div><p>Nenhuma degustadora cadastrada.</p></div></div>
   </div>
 
   <!-- ABA: ANÁLISE IA -->
@@ -523,7 +568,7 @@ function renderStats() {
 // ── TABS ──────────────────────────────────────────────────────────
 function switchMainTab(name) {
   document.querySelectorAll('.main-tab').forEach((t,i) => {
-    const tabs = ['overview','ranking','sessions','photos','ai'];
+    const tabs = ['overview','ranking','sessions','photos','ai','team'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
@@ -532,6 +577,7 @@ function switchMainTab(name) {
   else stopRankingTimer();
   if (name === 'photos') renderPhotoTree();
   if (name === 'ai') runAiAnalysis();
+  if (name === 'team') loadTeam();
 }
 
 function switchChartTab(name) {
@@ -1287,6 +1333,102 @@ function addTypingBubble() {
 }
 
 
+// ── EQUIPE ────────────────────────────────────────────────────────
+
+async function loadTeam() {
+  const listEl = document.getElementById('team-list');
+  if (!db) return;
+  try {
+    const snap = await db.collection('degustadoras').orderBy('name').get();
+    if (snap.empty) {
+      listEl.innerHTML = '<div class="empty"><div class="empty-icon">👤</div><p>Nenhuma degustadora cadastrada.</p></div>';
+      return;
+    }
+    listEl.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      return `<div class="session-card" style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+          <div style="width:38px;height:38px;border-radius:50%;background:rgba(201,150,42,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">👤</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px;color:var(--cream)">${d.name}</div>
+            ${d.phone ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">📱 ${d.phone}</div>` : ''}
+            ${d.notes ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">📝 ${d.notes}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <button onclick="editTeamMember('${doc.id}','${d.name.replace(/'/g,"\'")}','${(d.phone||'').replace(/'/g,"\'")}','${(d.notes||'').replace(/'/g,"\'")}'" style="
+              background:transparent;border:1px solid var(--border);
+              color:var(--text-muted);border-radius:8px;padding:5px 10px;
+              font-size:12px;cursor:pointer;">✏️</button>
+            <button onclick="deleteTeamMember('${doc.id}','${d.name.replace(/'/g,"\'")}'" style="
+              background:transparent;border:1px solid rgba(226,87,87,0.3);
+              color:var(--danger);border-radius:8px;padding:5px 10px;
+              font-size:12px;cursor:pointer;">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty"><p style="color:var(--danger)">Erro: ${e.message}</p></div>`;
+  }
+}
+
+function openAddTeam() {
+  document.getElementById('team-edit-id').value = '';
+  document.getElementById('team-name').value = '';
+  document.getElementById('team-phone').value = '';
+  document.getElementById('team-notes').value = '';
+  document.getElementById('team-form-title').textContent = 'Nova Degustadora';
+  document.getElementById('team-form').style.display = 'block';
+  document.getElementById('team-name').focus();
+}
+
+function editTeamMember(id, name, phone, notes) {
+  document.getElementById('team-edit-id').value = id;
+  document.getElementById('team-name').value = name;
+  document.getElementById('team-phone').value = phone;
+  document.getElementById('team-notes').value = notes;
+  document.getElementById('team-form-title').textContent = 'Editar Degustadora';
+  document.getElementById('team-form').style.display = 'block';
+  document.getElementById('team-name').focus();
+}
+
+function closeTeamForm() {
+  document.getElementById('team-form').style.display = 'none';
+}
+
+async function saveTeamMember() {
+  const name = document.getElementById('team-name').value.trim();
+  if (!name) { showToast('Nome obrigatório', 'error'); return; }
+  const phone = document.getElementById('team-phone').value.trim();
+  const notes = document.getElementById('team-notes').value.trim();
+  const editId = document.getElementById('team-edit-id').value;
+  try {
+    if (editId) {
+      await db.collection('degustadoras').doc(editId).update({ name, phone, notes, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Degustadora atualizada ✓', 'success');
+    } else {
+      await db.collection('degustadoras').add({ name, phone, notes, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Degustadora cadastrada ✓', 'success');
+    }
+    closeTeamForm();
+    loadTeam();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function deleteTeamMember(id, name) {
+  if (!confirm(`Remover "${name}" do cadastro?`)) return;
+  try {
+    await db.collection('degustadoras').doc(id).delete();
+    showToast('Removida ✓', 'success');
+    loadTeam();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+
 </script>
 
 <!-- MODAL DELETAR -->
@@ -1316,6 +1458,6 @@ function addTypingBubble() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.8</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.9</div>
 </body>
 </html>
