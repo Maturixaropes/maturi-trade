@@ -1030,6 +1030,10 @@ function handleRestoreYes() {
 
   showScreen(pendingRestoreScreen);
   showToast('Sessão restaurada com sucesso ✅', 'success');
+  // Recarrega miniaturas das fotos durante do Firestore
+  if (pendingRestoreScreen === 'during' || pendingRestoreScreen === 'end') {
+    restoreDuringPhotos();
+  }
   pendingRestoreScreen = null;
 }
 
@@ -1256,20 +1260,44 @@ function triggerDuringUpload() {
 function handleDuringPhotos(input) {
   const files = Array.from(input.files);
   files.forEach(file => {
-    state.photos.during.push(file);
     const reader = new FileReader();
-    reader.onload = e => addDuringThumb(e.target.result);
+    reader.onload = e => {
+      const src = e.target.result;
+      // Guarda em memória para exibir miniatura
+      state.photos.during.push(file);
+      const photoIdx = state.photos.during.length - 1;
+      addDuringThumb(src, photoIdx);
+      // Faz upload imediato se estiver conectado
+      if (!demoMode && sessionId && db) {
+        uploadDuringPhotoNow(file, photoIdx);
+      }
+    };
     reader.readAsDataURL(file);
   });
   input.value = '';
 }
 
-function addDuringThumb(src) {
+async function uploadDuringPhotoNow(file, idx) {
+  try {
+    const data = await uploadFile(file, '');
+    await db.collection('sessions').doc(sessionId)
+      .collection('photos').doc('during_' + idx).set({ data });
+    // Marca miniatura como salva (borda verde discreta)
+    const grid = document.getElementById('during-grid');
+    const thumbs = grid.querySelectorAll('.photo-thumb:not(.photo-thumb-add)');
+    if (thumbs[idx]) thumbs[idx].style.outline = '2px solid rgba(76,175,124,0.6)';
+  } catch(e) {
+    console.warn('Erro no upload imediato da foto durante:', e);
+    // Falha silenciosa — foto ainda fica em memória para tentar no goToEnd
+  }
+}
+
+function addDuringThumb(src, idx) {
   const grid = document.getElementById('during-grid');
   const addBtn = grid.querySelector('.photo-thumb-add');
   const thumb = document.createElement('div');
   thumb.className = 'photo-thumb';
-  const idx = state.photos.during.length - 1;
+  if (idx === undefined) idx = state.photos.during.length - 1;
   thumb.innerHTML = `<img src="${src}" alt="Foto ${idx+1}">
     <button class="remove-btn" onclick="removeDuringPhoto(${idx},this.closest('.photo-thumb'))">✕</button>`;
   grid.insertBefore(thumb, addBtn);
@@ -1479,20 +1507,74 @@ async function loadRanking() {
   }
 }
 
-async function goToEnd() {
-  if (!demoMode && state.photos.during.length > 0) {
-    showLoading('Salvando fotos...');
-    try {
-      for (let i = 0; i < state.photos.during.length; i++) {
-        const data = await uploadFile(state.photos.during[i], '');
-        await db.collection('sessions').doc(sessionId).collection('photos').doc('during_'+i).set({ data });
-        setBar('start', Math.round((i+1)/state.photos.during.length*100));
+async function restoreDuringPhotos() {
+  if (!sessionId || !db) return;
+  try {
+    const grid = document.getElementById('during-grid');
+    if (!grid) return;
+    // Limpa miniaturas existentes (exceto o botão +)
+    grid.querySelectorAll('.photo-thumb:not(.photo-thumb-add)').forEach(el => el.remove());
+    state.photos.during = []; // limpa array em memória (eram File objects perdidos)
+
+    // Busca fotos salvas no Firestore
+    const snap = await db.collection('sessions').doc(sessionId)
+      .collection('photos').get();
+
+    const duringPhotos = [];
+    snap.forEach(doc => {
+      if (doc.id.startsWith('during_')) {
+        const idx = parseInt(doc.id.replace('during_', ''));
+        duringPhotos.push({ idx, data: doc.data().data });
       }
-      hideLoading();
-    } catch(e) {
-      console.error(e);
-      hideLoading();
-      showToast('Erro ao salvar fotos. Continuando...', 'error');
+    });
+
+    // Ordena por índice e exibe miniaturas
+    duringPhotos.sort((a, b) => a.idx - b.idx);
+    duringPhotos.forEach(p => {
+      state.photos.during[p.idx] = p.data; // guarda base64 (não File, mas serve para exibir)
+      const addBtn = grid.querySelector('.photo-thumb-add');
+      const thumb = document.createElement('div');
+      thumb.className = 'photo-thumb';
+      thumb.style.outline = '2px solid rgba(76,175,124,0.6)'; // já salva
+      thumb.innerHTML = `<img src="${p.data}" alt="Foto ${p.idx + 1}">
+        <button class="remove-btn" onclick="removeDuringPhoto(${p.idx},this.closest('.photo-thumb'))">✕</button>`;
+      grid.insertBefore(thumb, addBtn);
+    });
+
+    if (duringPhotos.length > 0) {
+      showToast(`${duringPhotos.length} foto(s) recuperada(s) ✅`, 'success');
+    }
+  } catch(e) {
+    console.warn('Erro ao restaurar fotos durante:', e);
+  }
+}
+
+async function goToEnd() {
+  // Fotos já foram enviadas em uploadDuringPhotoNow — aqui só garante
+  // o upload das que falharam (arquivo ainda em memória como File)
+  if (!demoMode && sessionId && db) {
+    const pending = state.photos.during.filter(f => f instanceof File);
+    if (pending.length > 0) {
+      showLoading('Verificando fotos...');
+      try {
+        for (let i = 0; i < state.photos.during.length; i++) {
+          if (!(state.photos.during[i] instanceof File)) continue;
+          // Checa se já foi salva no Firestore
+          const doc = await db.collection('sessions').doc(sessionId)
+            .collection('photos').doc('during_' + i).get();
+          if (!doc.exists) {
+            const data = await uploadFile(state.photos.during[i], '');
+            await db.collection('sessions').doc(sessionId)
+              .collection('photos').doc('during_' + i).set({ data });
+          }
+          setBar('start', Math.round((i+1)/state.photos.during.length*100));
+        }
+        hideLoading();
+      } catch(e) {
+        console.error(e);
+        hideLoading();
+        showToast('Erro ao verificar fotos. Continuando...', 'error');
+      }
     }
   }
   showScreen('end');
@@ -1997,7 +2079,7 @@ function hideAC(type) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.8</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.9</div>
 
 </body>
 </html>
