@@ -1111,7 +1111,7 @@ function formatContextForAI(ctx, question=null) {
 ${details}`;
   }).join('\n');
 
-  let prompt = `Você é um analista especializado em trade marketing de bebidas. Analise os dados reais de degustações da marca Maturí (xaropes tropicais) e responda em português do Brasil de forma direta e profissional.
+  let prompt = `Você é um analista de trade marketing. Responda em português do Brasil de forma muito direta e concisa. Máximo 3-4 frases por resposta. Sem markdown, sem títulos, sem listas longas.
 
 DADOS DAS LOJAS (média de garrafas vendidas por ação):
 ${storeLines}
@@ -1140,7 +1140,7 @@ TAREFA: Gere um relatório executivo com:
 4. **Destaques 🟢**: degustadoras acima da média em lojas de alto movimento
 5. **Recomendação**: quem escalar em lojas de alto movimento e quem precisa de atenção ou retreinamento
 
-Seja direto e use os dados reais. Máximo 400 palavras.`;
+Seja direto e objetivo. Máximo 150 palavras. Sem títulos ou formatação markdown.`;
   }
 
   return prompt;
@@ -1152,7 +1152,7 @@ async function callClaudeAPI(prompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 1000,
+      max_tokens: 400,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1235,7 +1235,7 @@ async function askAi() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1000,
+        max_tokens: 400,
         messages: chatHistory
       })
     });
@@ -1316,6 +1316,6 @@ function addTypingBubble() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.7</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.8</div>
 </body>
 </html>
