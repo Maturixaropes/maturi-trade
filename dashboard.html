@@ -285,6 +285,9 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
 </div><!-- #dash-screen -->
 
 <script>
+// Cache de fotos para o lightbox (evita JSON inline no onclick)
+window.__photoCache = {};
+
 const FIREBASE_CONFIG = {
   apiKey:"AIzaSyDiPCjrd-Soya5yZjzd9a4paoK5ZX8Vdi0",
   authDomain:"maturi-trade-mkt.firebaseapp.com",
@@ -493,7 +496,7 @@ function renderList(sessions) {
         </div>
         ${s.notes?`<div class="notes-section"><strong>Obs:</strong> ${s.notes}</div>`:''}
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
-          <button class="btn-delete" onclick="confirmDelete('${s.id}','${(s.name||'').replace(/'/g,\"\\'\")}')" title="Deletar degustação">🗑 Deletar</button>
+          <button class="btn-delete" data-id="${s.id}" data-name="${s.name||''}" onclick="confirmDelete(this.dataset.id,this.dataset.name)" title="Deletar degustação">🗑 Deletar</button>
         </div>
       </div>
     </div>`;
@@ -539,11 +542,12 @@ async function loadPhotos(sessionId) {
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">${folder.label} (${folder.imgs.length})</div>
         <div class="photos-row">
           ${folder.imgs.map((src,i) => `<img class="photo-thumb-dash" src="${src}"
-            onclick="openLb(${JSON.stringify(allImgs)},${start+i})"
+            onclick="openLbCached('${sessionId}',${start+i})"
             title="Clique para ampliar">`).join('')}
         </div>
       </div>`;
     });
+    window.__photoCache[sessionId] = allImgs;
     container.innerHTML = html;
   } catch(e) {
     container.innerHTML='<div class="photos-title">Fotos</div><div style="color:var(--text-muted);font-size:13px">Erro ao carregar fotos.</div>';
@@ -831,19 +835,26 @@ async function loadTreePhotos(sessionId) {
           <div class="tree-body" id="${folderId}">
             <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 4px">
               ${folder.imgs.map((src,i) => `<img class="photo-thumb-dash" src="${src}"
-                onclick="openLb(${JSON.stringify(allImgs)},${start+i})"
+                onclick="openLbCached('tree_${sessionId}',${start+i})"
                 title="Ampliar foto">`).join('')}
             </div>
           </div>
         </div>`;
     });
     html += '</div>';
+    window.__photoCache['tree_'+sessionId] = allImgs;
     container.innerHTML = html;
   } catch(e) {
     container.innerHTML='<div style="color:var(--text-muted);font-size:13px;padding:8px">Erro ao carregar.</div>';
   }
 }
 
+
+function openLbCached(cacheKey, idx) {
+  const images = window.__photoCache[cacheKey];
+  if (!images) return;
+  openLb(images, idx);
+}
 
 function openLb(images, idx) {
   lbImages = images; lbIdx = idx;
