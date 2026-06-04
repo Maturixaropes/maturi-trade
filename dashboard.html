@@ -1101,18 +1101,15 @@ function buildDataContext() {
 function formatContextForAI(ctx, question=null) {
   const storeLines = ctx.storeStats.map(s =>
     `  - ${s.loja} (${s.rede}): média ${s.avg} garrafas/ação (${s.count} ação(ões))`
-  ).join('
-');
+  ).join('\n');
 
   const deguLines = ctx.crossData.map(d => {
     const details = d.comparisons.map(c =>
       `    * ${c.loja}: ${c.bottles} garrafas (média da loja: ${c.avgStore ?? '?'}, diferença: ${c.diff >= 0 ? '+' : ''}${c.diff ?? '?'} / ${c.pct >= 0 ? '+' : ''}${c.pct ?? '?'}%)`
-    ).join('
-');
+    ).join('\n');
     return `  - ${d.name}: média geral ${d.avgDegu} garrafas (${d.totalSessions} ação(ões))
 ${details}`;
-  }).join('
-');
+  }).join('\n');
 
   let prompt = `Você é um analista especializado em trade marketing de bebidas. Analise os dados reais de degustações da marca Maturí (xaropes tropicais) e responda em português do Brasil de forma direta e profissional.
 
@@ -1319,6 +1316,6 @@ function addTypingBubble() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.5</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v1.6</div>
 </body>
 </html>
