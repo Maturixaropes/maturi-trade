@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Maturí Trade">
-<link rel="manifest" href="#" id="manifest-placeholder">
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIk1hdHVyXHUwMGVkIFRyYWRlIiwgInNob3J0X25hbWUiOiAiTWF0dXJcdTAwZWQiLCAiZGVzY3JpcHRpb24iOiAiQXBwIGRlIGRlZ3VzdGFcdTAwZTdcdTAwZjVlcyBNYXR1clx1MDBlZCIsICJzdGFydF91cmwiOiAiL21hdHVyaS10cmFkZS8iLCAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwgImJhY2tncm91bmRfY29sb3IiOiAiIzFFM0QyRiIsICJ0aGVtZV9jb2xvciI6ICIjMUUzRDJGIiwgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0IiwgImljb25zIjogW3sic3JjIjogImh0dHBzOi8vbWF0dXJpeGFyb3Blcy5naXRodWIuaW8vbWF0dXJpLXRyYWRlL2ljb24tMTkyLnBuZyIsICJzaXplcyI6ICIxOTJ4MTkyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn0sIHsic3JjIjogImh0dHBzOi8vbWF0dXJpeGFyb3Blcy5naXRodWIuaW8vbWF0dXJpLXRyYWRlL2ljb24tNTEyLnBuZyIsICJzaXplcyI6ICI1MTJ4NTEyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIn1dfQ==">
 <title>Maturí Trade — Degustação</title>
 
 <!-- Firebase -->
@@ -1163,6 +1163,7 @@ function initFirebase(cfg) {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     db = firebase.firestore();
     showToast('Firebase conectado! ✓', 'success');
+    loadLojas();         // carrega lojas do Firestore
     loadDegustadoras(); // carrega lista de nomes para autocomplete
     // Tenta restaurar sessão interrompida
     tryRestoreSession();
@@ -1187,6 +1188,31 @@ function showScreen(name) {
 
 // ── AUTOCOMPLETE DE NOME ─────────────────────────────────────
 let degustadorasList = []
+
+async function loadLojas() {
+  if (!db) return;
+  try {
+    const snap = await db.collection('lojas').get();
+    if (snap.empty) return; // usa lista hardcoded se não houver nada no Firestore
+    // Mescla Firestore com hardcoded — Firestore tem prioridade
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (!d.market || !d.name) return;
+      const rede = d.market.trim().toUpperCase();
+      const loja = d.name.trim().toUpperCase();
+      // Adiciona rede se não existir
+      if (!REDES.includes(rede)) REDES.push(rede);
+      // Adiciona loja à rede
+      if (!UNIDADES[rede]) UNIDADES[rede] = [];
+      if (!UNIDADES[rede].includes(loja)) UNIDADES[rede].push(loja);
+    });
+    // Ordena
+    REDES.sort();
+    Object.keys(UNIDADES).forEach(r => UNIDADES[r].sort());
+  } catch(e) {
+    console.warn('Erro ao carregar lojas do Firestore:', e);
+  }
+}
 
 async function loadDegustadoras() {
   if (!db) return
@@ -1951,9 +1977,10 @@ window.addEventListener('load', () => {
 // ──────────────────────────────
 //  STORE DATA + AUTOCOMPLETE
 // ──────────────────────────────
-const REDES = ['CONDOR','ADORATO','ADEGA BRASIL','MAX MUFFATO','ADEGA FANNY','SUPER VITOR','DAL POZZO','SUPERPÃO','FAMILIA FARINHA','SUPERDIA / ITALO','VICARI','FESTVAL','CARREFOUR','ASSAI','TOZETTO','PALMEIRA','COOPER','SUPERVILLE'];
+// Redes e lojas — carregadas do Firestore (fallback para lista hardcoded)
+let REDES = ['CONDOR','ADORATO','ADEGA BRASIL','MAX MUFFATO','ADEGA FANNY','SUPER VITOR','DAL POZZO','SUPERPÃO','FAMILIA FARINHA','SUPERDIA / ITALO','VICARI','FESTVAL','CARREFOUR','ASSAI','TOZETTO','PALMEIRA','COOPER','SUPERVILLE'];
 
-const UNIDADES = {
+let UNIDADES = {
   'CONDOR':['SANTA FELICIDADE','LAPA','WENCESLAU BRAZ','PINHEIRINHO','MARECHAL','PARANAGUA CENTRO','LONDRINA','CAMPO COMPRIDO','SAO BRAZ','TROCAS','SITIO CERCADO','SAO JOSE DOS PINHAIS','APUCARANA','HORTIFRUTI','AHU','PONTA GROSSA CENTRO','PONTA GROSSA NOVA RUSSIA','MARINGA AV PARANA','NILO PECANHA','CHAMPAGNAT','ARAUCARIA BR','SANTA CANDIDA','PARANAGUA RAIA','TORRES','NOVO MUNDO','CRISTO REI','AGUA VERDE','FAZENDA RIO GRANDE','CAMPO LARGO','UVARANAS','SAO JOSE RUA JOINVILLE','BRASILIA','CASTRO','CAJURU','COLOMBO','PINHAIS','MARINGA AV COLOMBO','CAMPO MOURAO','PONTA GROSSA JARDIM CARVALHO','ALMIRANTE TAMANDARE','PONTA GROSSA OFICINAS','ARAUCARIA COSTEIRA','CAMPO LARGO SAO JOSE','PINHAIS AV IRAI','JOINVILLE ITAUM','BOA VISTA','SANTA QUITERIA','JOINVILLE AMERICA','MAFRA CENTRO II','JOAO BETTEGA','FRANCISCO DEROSSO','JARAGUA DO SUL','PIRAQUARA','JOINVILLE BOA VISTA','PILARZINHO','CD MARINGA','MARINGA AV DR LUIZ TEIXEIRA','JARDIM DAS AMERICAS','PROFIPO','MARINGA AV KAKOGAWA','GRALHA AZUL','RIO NEGRO','BARREIRINHA','PONTA GROSSA ERNESTO VILELA','HIPERMAIS VILA NOVA','HIPERMAIS SHOPPING','HIPERMAIS PARANAGUAMIRIM','ARAUCARIA CAPELA VELHA','HIPERMAIS FATIMA','HIPERMAIS JOAO COSTA','HIPERMAIS ARAQUARI','HIPERMAIS PROFIPO','HIPERMAIS JARAGUA','HIPERMAIS MAFRA BAIXADA','RIO NEGRINHO','SAO BENTO DO SUL CENTRO','SAO BENTO DO SUL SERRA','HIPERMAIS COLONIAL S BENTO','CONDOR CIC JK','CONDOR MERCES','GIGANTE PINHAIS','GIGANTE COLOMBO ROCA GRANDE','CONDOR SJP RUI BARBOSA','CONDOR TARUMA','ZONTA'],
   'ADORATO':['ADORATO'],
   'ADEGA BRASIL':['ADEGA PINHAIS','ADEGA RUA DA PAZ'],
@@ -2237,6 +2264,21 @@ async function firestorePhotoSet(sessionId, docName, data) {
   await queueOfflineUpload({ type: 'photo', sessionId, docName, data })
 }
 
+// ── SERVICE WORKER (PWA) ──────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  // Cria um service worker mínimo via blob para permitir instalação como PWA
+  const swCode = `
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+    self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response(''))));
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl, { scope: '/' })
+    .then(() => console.log('PWA: Service Worker registrado'))
+    .catch(e => console.warn('PWA: SW erro:', e.message));
+}
+
 </script>
 
   <!-- ── RANKING FLUTUANTE ── -->
@@ -2303,7 +2345,7 @@ async function firestorePhotoSet(sessionId, docName, data) {
   </div>
 
   <!-- VERSÃO -->
-  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.2</div>
+  <div style="position:fixed;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,0.25);z-index:9999;pointer-events:none;letter-spacing:0.5px">v3.3</div>
 
 </body>
 </html>
