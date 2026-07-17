@@ -228,6 +228,7 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
       <button class="main-tab" onclick="switchMainTab('photos')">📸 Fotos</button>
       <button class="main-tab" onclick="switchMainTab('ai')">🤖 Análise IA</button>
       <button class="main-tab" onclick="switchMainTab('team')">👥 Equipe</button>
+      <button class="main-tab" onclick="switchMainTab('stores')">🏪 Lojas</button>
     </div>
   </div>
 
@@ -359,6 +360,59 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
 
     <!-- Lista -->
     <div id="team-list"><div class="empty"><div class="empty-icon">👤</div><p>Nenhuma degustadora cadastrada.</p></div></div>
+  </div>
+
+  <!-- ABA: LOJAS -->
+  <div id="tab-stores" class="main-tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="section-title" style="margin:0">🏪 Cadastro de Lojas</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Lojas cadastradas aparecem como opção no app</p>
+      </div>
+      <button onclick="openAddStore()" style="
+        background:var(--gold);border:none;color:var(--green);
+        font-weight:800;font-size:13px;border-radius:10px;
+        padding:10px 20px;cursor:pointer;">+ Adicionar loja</button>
+    </div>
+
+    <!-- Formulário -->
+    <div id="store-form" style="
+      display:none;background:var(--card-bg);
+      border:1px solid var(--border);border-radius:var(--radius);
+      padding:20px;margin-bottom:16px;">
+      <div class="section-title" style="font-size:14px;margin-bottom:14px" id="store-form-title">Nova Loja</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input type="hidden" id="store-edit-id">
+        <select id="store-market" style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+          <option value="">Selecione a rede *</option>
+        </select>
+        <input type="text" id="store-name" placeholder="Nome da loja / unidade *"
+          style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+        <input type="text" id="store-city" placeholder="Bairro ou cidade (opcional)"
+          style="background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;">
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button onclick="closeStoreForm()" style="
+            flex:1;padding:12px;border-radius:10px;
+            border:1px solid var(--border);background:transparent;
+            color:var(--text-muted);font-size:14px;cursor:pointer;">Cancelar</button>
+          <button onclick="saveStore()" style="
+            flex:2;padding:12px;border-radius:10px;border:none;
+            background:var(--gold);color:var(--green);
+            font-size:14px;font-weight:800;cursor:pointer;">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro por rede -->
+    <div style="margin-bottom:12px">
+      <select id="store-filter-market" onchange="renderStoreList()" style="
+        background:var(--card-bg);border:1px solid var(--border);
+        border-radius:10px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;">
+        <option value="">Todas as redes</option>
+      </select>
+    </div>
+
+    <div id="store-list"><div class="empty"><div class="empty-icon">🏪</div><p>Nenhuma loja cadastrada.</p></div></div>
   </div>
 
   <!-- ABA: ANÁLISE IA -->
@@ -574,7 +628,7 @@ function renderStats() {
 // ── TABS ──────────────────────────────────────────────────────────
 function switchMainTab(name) {
   document.querySelectorAll('.main-tab').forEach((t,i) => {
-    const tabs = ['overview','ranking','sessions','photos','ai','team'];
+    const tabs = ['overview','ranking','sessions','photos','ai','team','stores'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
@@ -584,6 +638,7 @@ function switchMainTab(name) {
   if (name === 'photos') renderPhotoTree();
   if (name === 'ai') runAiAnalysis();
   if (name === 'team') loadTeam();
+  if (name === 'stores') loadStores();
 }
 
 function switchChartTab(name) {
@@ -1461,6 +1516,138 @@ async function deleteTeamMember(id, name) {
 }
 
 
+// ── LOJAS ─────────────────────────────────────────────────────────
+const REDES_LIST = ["ADORATO", "ADEGA BRASIL", "ADEGA FANNY", "ASSAI", "CARREFOUR", "CONDOR", "COOPER", "DAL POZZO", "FAMILIA FARINHA", "FESTVAL", "MAX MUFFATO", "PALMEIRA", "SUPER VITOR", "SUPERDIA/ITALO", "SUPERP\u00c3O", "SUPERVILLE", "TOZETTO", "VICARI"];
+let allStores = [];
+
+async function loadStores() {
+  if (!db) return;
+  // Popular select de rede no formulário
+  const sel = document.getElementById('store-market');
+  if (sel) sel.innerHTML = '<option value="">Selecione a rede *</option>' + REDES_LIST.map(r => `<option>${r}</option>`).join('');
+  
+  try {
+    const snap = await db.collection('lojas').orderBy('market').orderBy('name').get();
+    allStores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Popular filtro de rede
+    const markets = [...new Set(allStores.map(s => s.market))].sort();
+    const filterSel = document.getElementById('store-filter-market');
+    if (filterSel) {
+      const cur = filterSel.value;
+      filterSel.innerHTML = '<option value="">Todas as redes</option>' + markets.map(m => `<option ${m===cur?'selected':''}>${m}</option>`).join('');
+    }
+    
+    renderStoreList();
+  } catch(e) {
+    document.getElementById('store-list').innerHTML = `<div class="empty"><p style="color:var(--danger)">Erro: ${e.message}</p></div>`;
+  }
+}
+
+function renderStoreList() {
+  const filter = document.getElementById('store-filter-market')?.value || '';
+  const filtered = filter ? allStores.filter(s => s.market === filter) : allStores;
+  const listEl = document.getElementById('store-list');
+  
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="empty"><div class="empty-icon">🏪</div><p>Nenhuma loja encontrada.</p></div>';
+    return;
+  }
+
+  // Agrupar por rede
+  const byMarket = {};
+  filtered.forEach(s => {
+    if (!byMarket[s.market]) byMarket[s.market] = [];
+    byMarket[s.market].push(s);
+  });
+
+  let html = '';
+  Object.keys(byMarket).sort().forEach(market => {
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:0 4px">
+        ${market} <span style="color:var(--text-muted);font-weight:400">(${byMarket[market].length} loja(s))</span>
+      </div>`;
+    byMarket[market].forEach(s => {
+      html += `<div class="session-card" style="margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+          <div style="font-size:20px">🏪</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px;color:var(--cream)">${s.name}</div>
+            ${s.city ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">📍 ${s.city}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="editStore('${s.id}','${s.market.replace(/'/g,"\'")}','${s.name.replace(/'/g,"\'")}','${(s.city||'').replace(/'/g,"\'")}')" style="
+              background:transparent;border:1px solid var(--border);
+              color:var(--text-muted);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;">✏️</button>
+            <button onclick="deleteStore('${s.id}','${s.name.replace(/'/g,"\'")}')" style="
+              background:transparent;border:1px solid rgba(226,87,87,0.3);
+              color:var(--danger);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+function openAddStore() {
+  document.getElementById('store-edit-id').value = '';
+  document.getElementById('store-market').value = '';
+  document.getElementById('store-name').value = '';
+  document.getElementById('store-city').value = '';
+  document.getElementById('store-form-title').textContent = 'Nova Loja';
+  document.getElementById('store-form').style.display = 'block';
+  document.getElementById('store-name').focus();
+}
+
+function editStore(id, market, name, city) {
+  document.getElementById('store-edit-id').value = id;
+  document.getElementById('store-market').value = market;
+  document.getElementById('store-name').value = name;
+  document.getElementById('store-city').value = city;
+  document.getElementById('store-form-title').textContent = 'Editar Loja';
+  document.getElementById('store-form').style.display = 'block';
+}
+
+function closeStoreForm() {
+  document.getElementById('store-form').style.display = 'none';
+}
+
+async function saveStore() {
+  const market = document.getElementById('store-market').value;
+  const name   = document.getElementById('store-name').value.trim();
+  const city   = document.getElementById('store-city').value.trim();
+  const editId = document.getElementById('store-edit-id').value;
+  if (!market) { showToast('Selecione a rede', 'error'); return; }
+  if (!name)   { showToast('Nome da loja obrigatório', 'error'); return; }
+  try {
+    if (editId) {
+      await db.collection('lojas').doc(editId).update({ market, name, city, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Loja atualizada ✓', 'success');
+    } else {
+      await db.collection('lojas').add({ market, name, city, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      showToast('Loja cadastrada ✓', 'success');
+    }
+    closeStoreForm();
+    loadStores();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+async function deleteStore(id, name) {
+  if (!confirm(`Remover a loja "${name}"?`)) return;
+  try {
+    await db.collection('lojas').doc(id).delete();
+    showToast('Loja removida ✓', 'success');
+    loadStores();
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+
 </script>
 
 <!-- MODAL DELETAR -->
@@ -1490,6 +1677,6 @@ async function deleteTeamMember(id, name) {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.0</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.1</div>
 </body>
 </html>
