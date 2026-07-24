@@ -32,6 +32,8 @@
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--creme-claro); color: var(--verde); display: flex; min-height: 100vh; }
 
 /* SIDEBAR */
+.app-shell-hidden { display: none !important; }
+.app-shell-visible { display: flex !important; width: 100%; }
 .sidebar {
   width: var(--sidebar-w); background: var(--verde); min-height: 100vh;
   display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
@@ -53,7 +55,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--creme-c
 .nav-item.active { background: rgba(201,150,42,0.15); color: var(--dourado-claro); border-left-color: var(--dourado); font-weight: 700; }
 .nav-item .nav-icon { font-size: 18px; width: 24px; text-align: center; }
 .sidebar-footer { padding: 16px; border-top: 1px solid rgba(240,230,200,0.15); }
-.sidebar-footer .version { font-size: 11px; color: rgba(240,230,200,0.4); }
+.sidebar-footer { margin-top: auto; } .sidebar-footer .version { font-size: 11px; color: rgba(240,230,200,0.4); display: block !important; }
 
 /* MAIN */
 .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
@@ -375,7 +377,7 @@ tr:last-child td { border-bottom: none; }
 </div>
 
 <!-- APP SHELL (hidden until login) -->
-<div id="app-shell" style="display:none;width:100%">
+<div id="app-shell" class="app-shell-hidden">
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-logo">
@@ -390,8 +392,9 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" onclick="goTab('sabores')"><span class="nav-icon">🍹</span> Sabores por Rede</div>
       <div class="nav-item" onclick="goTab('ia')"><span class="nav-icon">🤖</span> Análise IA</div>
       <div class="nav-item" onclick="goTab('equipe')"><span class="nav-icon">👥</span> Equipe</div>
+      <div class="nav-item gestor-only" onclick="goTab('acessos')"><span class="nav-icon">🔐</span> Acessos</div>
     </nav>
-    <div class="sidebar-footer"><div class="version">v1.6 — Dashboard</div></div>
+    <div class="sidebar-footer"><div class="version">v1.8 — Dashboard</div></div>
   </div>
 
   <!-- MAIN -->
@@ -601,6 +604,29 @@ tr:last-child td { border-bottom: none; }
         </table></div>
       </div>
 
+      <!-- ===== ACESSOS ===== -->
+      <div class="tab-panel" id="tab-acessos">
+        <div class="section-header">
+          <h2>🔐 Histórico de Acessos</h2>
+          <button class="btn btn-outline btn-sm" onclick="carregarAcessos()">🔄 Atualizar</button>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Resumo de acessos — últimos 30 dias</div>
+          <div class="stats-grid" id="acessos-stats" style="margin-bottom:0"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Log de acessos</div>
+          <div class="filtros">
+            <input type="text" id="f-acesso-busca" placeholder="🔍 Buscar rede..." oninput="filtrarAcessos()" style="width:200px">
+            <input type="date" id="f-acesso-data" onchange="filtrarAcessos()">
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Rede</th><th>Data</th><th>Horário</th><th>Dispositivo</th></tr></thead>
+            <tbody id="tbody-acessos"></tbody>
+          </table></div>
+        </div>
+      </div>
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app-shell -->
@@ -785,8 +811,8 @@ window.doLogin = function() {
   }
 
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-shell').style.removeProperty('display');
-  document.getElementById('app-shell').style.display = 'flex';
+  document.getElementById('app-shell').classList.remove('app-shell-hidden');
+  document.getElementById('app-shell').classList.add('app-shell-visible');
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'numeric',month:'long'});
 
   // Aplicar restrições de acesso por rede
@@ -797,6 +823,76 @@ window.doLogin = function() {
   initDashboard();
 };
 
+// ============================================================
+// ACESSOS
+// ============================================================
+async function registrarAcesso(rede) {
+  try {
+    await addDoc(collection(db, 'access_logs'), {
+      network: rede,
+      timestamp: serverTimestamp(),
+      userAgent: navigator.userAgent.substring(0, 120)
+    });
+  } catch(e) {}
+}
+
+let allAcessos = [];
+
+window.carregarAcessos = async function() {
+  try {
+    const snap = await getDocs(collection(db, 'access_logs'));
+    allAcessos = [];
+    snap.forEach(d => allAcessos.push({id: d.id, ...d.data()}));
+    allAcessos.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
+  } catch(e) {}
+  renderAcessosStats();
+  filtrarAcessos();
+};
+
+function renderAcessosStats() {
+  const trinta = Date.now()/1000 - 2592000;
+  const recentes = allAcessos.filter(a => (a.timestamp?.seconds||0) > trinta);
+  const redes = [...new Set(recentes.map(a => a.network))];
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const acessosHoje = recentes.filter(a => {
+    if (!a.timestamp) return false;
+    const d = new Date(a.timestamp.seconds*1000); d.setHours(0,0,0,0);
+    return d.getTime() === hoje.getTime();
+  });
+
+  document.getElementById('acessos-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total de acessos (30d)</div><div class="stat-value">${recentes.length}</div></div>
+    <div class="stat-card verde"><div class="stat-label">Acessos hoje</div><div class="stat-value">${acessosHoje.length}</div></div>
+    <div class="stat-card azul"><div class="stat-label">Redes ativas (30d)</div><div class="stat-value">${redes.length}</div></div>
+  `;
+}
+
+window.filtrarAcessos = function() {
+  const busca = (document.getElementById('f-acesso-busca').value||'').toLowerCase();
+  const data = document.getElementById('f-acesso-data').value;
+  let lista = [...allAcessos];
+  if (busca) lista = lista.filter(a => (a.network||'').toLowerCase().includes(busca));
+  if (data) lista = lista.filter(a => {
+    if (!a.timestamp) return false;
+    return new Date(a.timestamp.seconds*1000).toISOString().slice(0,10) === data;
+  });
+  const tbody = document.getElementById('tbody-acessos');
+  tbody.innerHTML = '';
+  lista.slice(0, 200).forEach(a => {
+    const dt = a.timestamp ? new Date(a.timestamp.seconds*1000) : null;
+    const data_fmt = dt ? dt.toLocaleDateString('pt-BR') : '—';
+    const hora_fmt = dt ? dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
+    const dispositivo = (a.userAgent||'').includes('Mobile') ? '📱 Mobile' : '💻 Desktop';
+    tbody.innerHTML += `<tr>
+      <td><strong>${a.network||'Gestor'}</strong></td>
+      <td>${data_fmt}</td>
+      <td>${hora_fmt}</td>
+      <td>${dispositivo}</td>
+    </tr>`;
+  });
+  if (lista.length === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Nenhum acesso registrado</td></tr>';
+};
+
 function aplicarRestricaoRede() {
   // Ocultar itens do menu que não são Visitas
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -805,6 +901,8 @@ function aplicarRestricaoRede() {
       item.style.display = 'none';
     }
   });
+  // Ocultar aba gestor-only
+  document.querySelectorAll('.gestor-only').forEach(el => el.style.display = 'none');
   // Atualizar topbar
   document.getElementById('topbar-title').textContent = 'Visitas — ' + currentUserNetwork;
   // Ir direto para visitas
@@ -819,7 +917,8 @@ window.logout = function() {
   document.querySelectorAll('.nav-item').forEach(item => item.style.display = '');
   // Restaurar tela login
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('app-shell').classList.remove('app-shell-visible');
+  document.getElementById('app-shell').classList.add('app-shell-hidden');
   document.getElementById('login-senha').value = '';
   document.getElementById('login-erro').style.display = 'none';
   document.getElementById('login-subtitle').textContent = 'DASHBOARD GESTOR';
@@ -832,7 +931,7 @@ window.logout = function() {
 // ============================================================
 // NAVEGAÇÃO
 // ============================================================
-const TAB_TITLES = {'visao-geral':'Visão Geral','cronograma':'Cronograma','visitas':'Visitas','lojas':'Lojas','sabores':'Sabores por Rede','ia':'Análise IA','equipe':'Equipe'};
+const TAB_TITLES = {'visao-geral':'Visão Geral','cronograma':'Cronograma','visitas':'Visitas','lojas':'Lojas','sabores':'Sabores por Rede','ia':'Análise IA','equipe':'Equipe','acessos':'Histórico de Acessos'};
 
 window.goTab = function(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -846,6 +945,7 @@ window.goTab = function(tab) {
   if (tab === 'lojas') carregarLojas();
   if (tab === 'sabores') carregarTabelaSabores();
   if (tab === 'equipe') carregarEquipe();
+  if (tab === 'acessos') carregarAcessos();
 };
 
 // ============================================================
