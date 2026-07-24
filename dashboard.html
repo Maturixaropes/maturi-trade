@@ -710,7 +710,14 @@ function initFirebase() {
 async function loadSessions() {
   showLoading(true);
   try {
-    const snap = await db.collection('sessions').orderBy('startedAt','desc').limit(500).get();
+    // Comprador: filtra direto na query por rede
+    let query = db.collection('sessions').orderBy('startedAt','desc').limit(500);
+    if (currentUserRole === 'comprador' && currentUserMarket) {
+      query = db.collection('sessions')
+        .where('market', '==', currentUserMarket)
+        .orderBy('startedAt','desc').limit(500);
+    }
+    const snap = await query.get();
     allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     populateFilters();
     applyFilters();
@@ -783,7 +790,8 @@ function applyFilters() {
   populateUnitFilter();
   const search = document.getElementById('f-search').value.toLowerCase();
   const status = document.getElementById('f-status').value;
-  const market = document.getElementById('f-market').value;
+  // Comprador sempre filtra pela própria rede
+  const market = currentUserRole === 'comprador' ? currentUserMarket : document.getElementById('f-market').value;
   const unit   = document.getElementById('f-unit').value;
   const date   = document.getElementById('f-date').value;
   const sort   = document.getElementById('f-sort').value;
@@ -1872,6 +1880,6 @@ async function loadActivity() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.4</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.5</div>
 </body>
 </html>
