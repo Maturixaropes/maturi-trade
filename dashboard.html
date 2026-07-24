@@ -654,11 +654,15 @@ function applyUserRole() {
     const contents = document.querySelectorAll('.main-tab-content');
     tabs.forEach(t => t.style.display = 'none');
     contents.forEach(c => c.style.display = 'none');
-    // Mostra só a aba de degustações
+    // Mostra abas de degustações e ranking
     const sessionsTab = document.querySelector('.main-tab[onclick*="sessions"]');
+    const rankingTab  = document.querySelector('.main-tab[onclick*="ranking"]');
     const sessionsContent = document.getElementById('tab-sessions');
+    const rankingContent  = document.getElementById('tab-ranking');
     if (sessionsTab) { sessionsTab.style.display = 'block'; sessionsTab.classList.add('active'); }
     if (sessionsContent) { sessionsContent.style.display = 'block'; sessionsContent.classList.add('active'); }
+    if (rankingTab) rankingTab.style.display = 'block';
+    if (rankingContent) rankingContent.style.display = 'none'; // começa oculto, ativa ao clicar
     // Esconde aba de atividade para compradores
     const actBtn = document.getElementById('tab-activity-btn');
     if (actBtn) actBtn.style.display = 'none';
@@ -1041,6 +1045,8 @@ async function loadRankingDash() {
         if (ts < today.getTime()) return;
       }
       if (d.status !== 'active') return; // ranking só mostra ativas
+      // Filtrar por rede se for comprador
+      if (currentUserRole === 'comprador' && d.market !== currentUserMarket) return;
       const bottles = typeof d.liveBottles==='number' ? d.liveBottles : (d.bottles||0);
       entries.push({ id:doc.id, name:d.name||'—', market:d.market||'', city:d.city||'', bottles, status:d.status });
     });
@@ -1866,6 +1872,6 @@ async function loadActivity() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.3</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.4</div>
 </body>
 </html>
