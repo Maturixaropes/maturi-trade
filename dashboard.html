@@ -235,7 +235,7 @@ tr:last-child td { border-bottom: none; }
 <body>
 
 <!-- BADGE VERSÃO sempre visível -->
-<div style="position:fixed;bottom:10px;left:10px;background:rgba(30,61,47,0.8);color:#F0E6C8;font-size:11px;padding:3px 9px;border-radius:10px;z-index:99999;pointer-events:none">v2.3 — Dashboard</div>
+<div style="position:fixed;bottom:10px;left:10px;background:rgba(30,61,47,0.8);color:#F0E6C8;font-size:11px;padding:3px 9px;border-radius:10px;z-index:99999;pointer-events:none">v2.4 — Dashboard</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -840,8 +840,16 @@ window.doLogin = function() {
   }
 
   
-  document.getElementById('app-page').classList.remove('app-shell-hidden');
-  document.getElementById('app-page').classList.add('app-shell-visible');
+  // Esconder login
+  const lpEl = document.getElementById('login-page');
+  lpEl.style.display = 'none';
+  lpEl.style.visibility = 'hidden';
+  lpEl.style.zIndex = '-1';
+  // Mostrar app
+  const appEl = document.getElementById('app-page');
+  appEl.style.display = 'flex';
+  appEl.style.width = '100%';
+  appEl.style.minHeight = '100vh';
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'numeric',month:'long'});
 
   // Aplicar restrições de acesso por rede
@@ -945,7 +953,10 @@ window.logout = function() {
   // Restaurar menu completo
   document.querySelectorAll('.nav-item').forEach(item => item.style.display = '');
   // Restaurar tela login
-  document.getElementById('login-page').classList.remove('oculto');
+  const lpEl2 = document.getElementById('login-page');
+  lpEl2.style.display = 'flex';
+  lpEl2.style.visibility = 'visible';
+  lpEl2.style.zIndex = '9999';
   document.getElementById('app-page').style.display = 'none';
   document.getElementById('login-senha').value = '';
   document.getElementById('login-erro').style.display = 'none';
