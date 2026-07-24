@@ -749,12 +749,12 @@ function renderStats() {
 
 // ── TABS ──────────────────────────────────────────────────────────
 function switchMainTab(name) {
-  document.querySelectorAll('.main-tab').forEach((t,i) => {
-    const tabs = ['overview','ranking','sessions','photos','ai','team','stores','activity'];
-    t.classList.toggle('active', tabs[i] === name);
+  document.querySelectorAll('.main-tab').forEach(t => {
+    t.classList.toggle('active', t.getAttribute('onclick') && t.getAttribute('onclick').includes("'"+name+"'"));
   });
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
+  const tabEl = document.getElementById('tab-'+name);
+  if (tabEl) { tabEl.style.display = 'block'; tabEl.classList.add('active'); }
   if (name === 'ranking') { startRankingTimer(); loadRankingDash(); }
   else stopRankingTimer();
   if (name === 'photos') renderPhotoTree();
@@ -1880,6 +1880,6 @@ async function loadActivity() {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.5</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.6</div>
 </body>
 </html>
