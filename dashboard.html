@@ -391,7 +391,7 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" onclick="goTab('ia')"><span class="nav-icon">🤖</span> Análise IA</div>
       <div class="nav-item" onclick="goTab('equipe')"><span class="nav-icon">👥</span> Equipe</div>
     </nav>
-    <div class="sidebar-footer"><div class="version">v1.5 — Dashboard</div></div>
+    <div class="sidebar-footer"><div class="version">v1.6 — Dashboard</div></div>
   </div>
 
   <!-- MAIN -->
@@ -737,10 +737,12 @@ window.toggleLoginRede = function() {
     sel.onchange = () => {
       loginRedeAtual = sel.value || null;
       if (loginRedeAtual) {
-        subtitle.textContent = loginRedeAtual + ' — ACESSO RESTRITO';
+        if (subtitle) subtitle.textContent = loginRedeAtual + ' — ACESSO RESTRITO';
         field.style.display = 'block';
-        document.getElementById('login-rede-label').textContent = loginRedeAtual;
-        link.textContent = 'Acesso gestor';
+        const lbl = document.getElementById('login-rede-label');
+        if (lbl) lbl.textContent = loginRedeAtual;
+        const lnk = document.querySelector('[onclick="toggleLoginRede()"]');
+        if (lnk) lnk.textContent = 'Acesso gestor';
       }
     };
     field.innerHTML = '';
