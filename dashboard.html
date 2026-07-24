@@ -33,7 +33,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--creme-c
 
 /* SIDEBAR */
 .app-shell-hidden { display: none !important; }
-.app-shell-visible { display: flex !important; width: 100%; }
+.app-shell-visible { display: flex !important; width: 100%; min-height: 100vh; position: relative; }
 .sidebar {
   width: var(--sidebar-w); background: var(--verde); min-height: 100vh;
   display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
@@ -394,7 +394,7 @@ tr:last-child td { border-bottom: none; }
       <div class="nav-item" onclick="goTab('equipe')"><span class="nav-icon">👥</span> Equipe</div>
       <div class="nav-item gestor-only" onclick="goTab('acessos')"><span class="nav-icon">🔐</span> Acessos</div>
     </nav>
-    <div class="sidebar-footer"><div class="version">v1.8 — Dashboard</div></div>
+    <div class="sidebar-footer"><div class="version">v1.9 — Dashboard</div></div>
   </div>
 
   <!-- MAIN -->
