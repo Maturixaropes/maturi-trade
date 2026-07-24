@@ -229,6 +229,7 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
       <button class="main-tab" onclick="switchMainTab('ai')">🤖 Análise IA</button>
       <button class="main-tab" onclick="switchMainTab('team')">👥 Equipe</button>
       <button class="main-tab" onclick="switchMainTab('stores')">🏪 Lojas</button>
+      <button class="main-tab" id="tab-activity-btn" onclick="switchMainTab('activity')">📋 Atividade</button>
     </div>
   </div>
 
@@ -413,6 +414,28 @@ html,body{min-height:100%;background:var(--green);color:var(--text);font-family:
     </div>
 
     <div id="store-list"><div class="empty"><div class="empty-icon">🏪</div><p>Nenhuma loja cadastrada.</p></div></div>
+  </div>
+
+  <!-- ABA: ATIVIDADE -->
+  <div id="tab-activity" class="main-tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div class="section-title" style="margin:0">📋 Registro de Atividade</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px">Acessos dos compradores ao dashboard</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="activity-filter-market" onchange="loadActivity()" style="
+          background:var(--card-bg);border:1px solid var(--border);
+          border-radius:10px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;">
+          <option value="">Todas as redes</option>
+        </select>
+        <button onclick="loadActivity()" style="
+          background:var(--gold);border:none;color:var(--green);
+          font-weight:700;font-size:12px;border-radius:8px;
+          padding:8px 14px;cursor:pointer;">↺ Atualizar</button>
+      </div>
+    </div>
+    <div id="activity-list"><div class="empty"><div class="empty-icon">📋</div><p>Nenhuma atividade registrada.</p></div></div>
   </div>
 
   <!-- ABA: ANÁLISE IA -->
@@ -610,6 +633,20 @@ function enterDashboard() {
   }
 }
 
+async function logBuyerAccess() {
+  if (currentUserRole !== 'comprador' || !db) return;
+  try {
+    await db.collection('acessos').add({
+      market: currentUserMarket,
+      role: 'comprador',
+      accessedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      userAgent: navigator.userAgent.substring(0, 100)
+    });
+  } catch(e) {
+    console.warn('Erro ao salvar log:', e);
+  }
+}
+
 function applyUserRole() {
   if (currentUserRole === 'comprador') {
     // Esconde todas as abas exceto Degustações
@@ -622,6 +659,9 @@ function applyUserRole() {
     const sessionsContent = document.getElementById('tab-sessions');
     if (sessionsTab) { sessionsTab.style.display = 'block'; sessionsTab.classList.add('active'); }
     if (sessionsContent) { sessionsContent.style.display = 'block'; sessionsContent.classList.add('active'); }
+    // Esconde aba de atividade para compradores
+    const actBtn = document.getElementById('tab-activity-btn');
+    if (actBtn) actBtn.style.display = 'none';
     // Atualiza header para mostrar a rede
     document.querySelector('.dash-title-text').textContent = `Dashboard — ${currentUserMarket}`;
     // Pré-seleciona o filtro de rede
@@ -651,6 +691,7 @@ function initFirebase() {
   try {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
+    logBuyerAccess(); // registra acesso de comprador
     loadSessions();
   } catch(e) {
     document.getElementById('login-screen').style.display = 'flex';
@@ -698,7 +739,7 @@ function renderStats() {
 // ── TABS ──────────────────────────────────────────────────────────
 function switchMainTab(name) {
   document.querySelectorAll('.main-tab').forEach((t,i) => {
-    const tabs = ['overview','ranking','sessions','photos','ai','team','stores'];
+    const tabs = ['overview','ranking','sessions','photos','ai','team','stores','activity'];
     t.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
@@ -709,6 +750,7 @@ function switchMainTab(name) {
   if (name === 'ai') runAiAnalysis();
   if (name === 'team') loadTeam();
   if (name === 'stores') loadStores();
+  if (name === 'activity') loadActivity();
 }
 
 function switchChartTab(name) {
@@ -1718,6 +1760,83 @@ async function deleteStore(id, name) {
 }
 
 
+// ── ATIVIDADE ─────────────────────────────────────────────────────
+async function loadActivity() {
+  const listEl = document.getElementById('activity-list');
+  const filterMarket = document.getElementById('activity-filter-market')?.value || '';
+  if (!db) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Carregando...</div>';
+  try {
+    let query = db.collection('acessos').orderBy('accessedAt', 'desc').limit(100);
+    const snap = await query.get();
+
+    if (snap.empty) {
+      listEl.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>Nenhum acesso registrado ainda.</p></div>';
+      return;
+    }
+
+    // Popular filtro de rede
+    const markets = [...new Set(snap.docs.map(d => d.data().market).filter(Boolean))].sort();
+    const filterSel = document.getElementById('activity-filter-market');
+    if (filterSel) {
+      const cur = filterSel.value;
+      filterSel.innerHTML = '<option value="">Todas as redes</option>' +
+        markets.map(m => `<option ${m===cur?'selected':''}>${m}</option>`).join('');
+    }
+
+    // Filtrar e renderizar
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (filterMarket) docs = docs.filter(d => d.market === filterMarket);
+
+    if (!docs.length) {
+      listEl.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>Nenhum acesso para essa rede.</p></div>';
+      return;
+    }
+
+    // Agrupar por dia
+    const byDay = {};
+    docs.forEach(d => {
+      const ts = d.accessedAt?.toDate ? d.accessedAt.toDate() : new Date();
+      const day = ts.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+      if (!byDay[day]) byDay[day] = [];
+      byDay[day].push({ ...d, ts });
+    });
+
+    let html = '';
+    Object.keys(byDay).forEach(day => {
+      html += `<div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);text-transform:capitalize;
+          margin-bottom:8px;padding:0 4px;letter-spacing:.3px">${day}</div>`;
+      byDay[day].forEach(a => {
+        const hora = a.ts.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        html += `<div class="session-card" style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+            <div style="font-size:24px">🏪</div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:14px;color:var(--cream)">${a.market || '—'}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+                Comprador acessou às ${hora}
+              </div>
+            </div>
+            <div style="
+              background:rgba(76,175,124,0.15);border:1px solid rgba(76,175,124,0.3);
+              border-radius:20px;padding:3px 10px;
+              font-size:11px;font-weight:600;color:var(--success);">
+              ● Online
+            </div>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    });
+
+    listEl.innerHTML = html;
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty"><p style="color:var(--danger)">Erro: ${e.message}</p></div>`;
+  }
+}
+
+
 </script>
 
 <!-- MODAL DELETAR -->
@@ -1747,6 +1866,6 @@ async function deleteStore(id, name) {
   </div>
 </div>
 
-  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.2</div>
+  <div style="position:fixed;bottom:6px;right:10px;font-size:10px;color:rgba(255,255,255,0.2);z-index:9999;pointer-events:none;letter-spacing:0.5px">v2.3</div>
 </body>
 </html>
