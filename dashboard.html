@@ -235,7 +235,7 @@ tr:last-child td { border-bottom: none; }
 <body>
 
 <!-- BADGE VERSÃO sempre visível -->
-<div style="position:fixed;bottom:10px;left:10px;background:rgba(30,61,47,0.8);color:#F0E6C8;font-size:11px;padding:3px 9px;border-radius:10px;z-index:99999;pointer-events:none">v2.2 — Dashboard</div>
+<div style="position:fixed;bottom:10px;left:10px;background:rgba(30,61,47,0.8);color:#F0E6C8;font-size:11px;padding:3px 9px;border-radius:10px;z-index:99999;pointer-events:none">v2.3 — Dashboard</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -839,9 +839,9 @@ window.doLogin = function() {
     document.getElementById('login-erro').style.display = 'block'; return;
   }
 
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-shell').classList.remove('app-shell-hidden');
-  document.getElementById('app-shell').classList.add('app-shell-visible');
+  
+  document.getElementById('app-page').classList.remove('app-shell-hidden');
+  document.getElementById('app-page').classList.add('app-shell-visible');
   document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'numeric',month:'long'});
 
   // Aplicar restrições de acesso por rede
